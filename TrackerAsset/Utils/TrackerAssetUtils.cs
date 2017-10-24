@@ -5,6 +5,10 @@ using System.Collections.Generic;
 namespace AssetPackage.Utils{
     using AssetPackage;
     using AssetPackage.Exceptions;
+    using AssetPackage.Plugins;
+    using System.Reflection;
+    using System.Linq;
+    using Plugins;
 
     public class TrackerAssetUtils{
 
@@ -87,7 +91,8 @@ namespace AssetPackage.Utils{
 			}
 		}
 
-		public void notify<T>(string message, string strict_message) where T : TrackerException{
+		public void notify<T>(string message, string strict_message) where T : TrackerException
+        {
 			if (Tracker.StrictMode) {
 				throw (T)Activator.CreateInstance (typeof(T), strict_message);
 			} else {
@@ -104,6 +109,50 @@ namespace AssetPackage.Utils{
                 value = (T) Enum.Parse(typeof(T), text, true);
             }catch(Exception e) {
                 ret = false;
+            }
+
+            return ret;
+        }
+
+        private static Dictionary<Type, List<Definition>> types;
+        public static bool TryFindDefinition<T>(string text, out T value) where T : Definition
+        {
+            bool ret = false;
+            value = null;
+
+            List<Definition> current_types;
+
+            if (TrackerAssetUtils.types != null && TrackerAssetUtils.types.ContainsKey(typeof(T)))
+            {
+                current_types = TrackerAssetUtils.types[typeof(T)];
+            }
+
+            else
+            {
+                TrackerAssetUtils.types = new Dictionary<Type, List<Definition>>();
+
+                List<T> tmp = (
+                    from t in Assembly.GetExecutingAssembly().GetTypes()
+                    where t.BaseType == typeof(T) && !t.IsAbstract && t.GetConstructor(Type.EmptyTypes) != null
+                    select Activator.CreateInstance(t) as T
+                ).ToList<T>();
+
+                current_types = new List<Definition>();
+
+                foreach (T e in tmp)
+                    current_types.Add(e);
+
+                TrackerAssetUtils.types.Add(typeof(T), current_types);
+            }
+
+            foreach(T e in current_types)
+            {
+                if (e.isThis(text))
+                {
+                    ret = true;
+                    value = e;
+                    break;
+                }
             }
 
             return ret;

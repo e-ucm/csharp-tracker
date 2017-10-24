@@ -24,11 +24,15 @@ namespace AssetPackage
     using AssetPackage;
     using AssetPackage.Exceptions;
     using AssetPackage.Utils;
+    using AssetPackage.Plugins;
     using System;
     using System.Collections.Generic;
     using System.ComponentModel;
     using System.Text.RegularExpressions;
     using SimpleJSON;
+    using System.Linq;
+    using System.Reflection;
+    using Plugins.SeriousGames.Interfaces;
 #if ASYNC
     using System.Threading;
 #endif
@@ -54,7 +58,7 @@ namespace AssetPackage
     /// <item><term>TODO</term><desciption> - Prevent csv/xml/json from net storage and xapi from local storage.</desciption></item>
     /// </list>
     /// </summary>
-    public class TrackerAsset : BaseAsset
+    public partial class TrackerAsset : BaseAsset
     {
 #region Fields
 
@@ -185,33 +189,9 @@ namespace AssetPackage
         /// </summary>
         private Dictionary<string, System.Object> extensions = new Dictionary<string, System.Object>();
 
-#region SubTracker Fields
+        #endregion Fields
 
-        /// <summary>
-        /// Instance of AccessibleTracker
-        /// </summary>
-        private AccessibleTracker accessibletracker;
-
-        /// <summary>
-        /// Instance of AlternativeTracker
-        /// </summary>
-        private AlternativeTracker alternativetracker;
-
-        /// <summary>
-        /// Instance of CompletableTracker
-        /// </summary>
-        private CompletableTracker completabletracker;
-
-        /// <summary>
-        /// Instance of GameObjectTracker
-        /// </summary>
-        private GameObjectTracker gameobjecttracer;
-
-#endregion SubTracker Fields
-
-#endregion Fields
-
-#region Constructors
+        #region Constructors
 
         /// <summary>
         /// Prevents a default instance of the TrackerAsset class from being created.
@@ -240,6 +220,18 @@ namespace AssetPackage
 
                 SaveSettings(SettingsFileName);
             }
+
+            //Init plugins
+            /*List<MethodInfo> methodsStartingWithFunc = GetType().GetMethods().Where(m => m.GetCustomAttributes(typeof(TrackerPluginAttribute),false).Count() > 0).ToList();
+
+            List<MethodInfo> methodsStartingWithFunc2 = GetType().GetMethods().Where(m => m.Name.Contains("Plugin")).ToList();
+
+            Console.WriteLine("pre");
+            foreach (MethodInfo m in methodsStartingWithFunc)
+            {
+                Console.WriteLine("test");
+                m.Invoke(this, null);
+            }*/
         }
 
 #endregion Constructors
@@ -312,62 +304,15 @@ namespace AssetPackage
             csv,
         }
 
-        /// <summary>
-        /// Values that represent the available verbs for traces.
-        /// </summary>
-        public enum Verb
+
+        public partial class Extension
         {
-            Initialized,
-            Progressed,
-            Completed,
-            Accessed,
-            Skipped,
-            Selected,
-            Unlocked,
-            Interacted,
-            Used
         }
+
 
         /// <summary>
         /// Values that represent the different extensions for traces.
         /// </summary>
-        public enum Extension
-        {
-            /* Special extensions, 
-               those extensions are stored reparatedly in xAPI, e.g.:
-               result: {
-                    score: {
-                        raw: <score_value: float>
-                    },
-                    success: <success_value: bool>,
-                    completion: <completion_value: bool>,
-                    response: <response_value: string>
-                    ...
-               }
-
-
-            */
-            Score,
-            Success,
-            Response,
-            Completion,
-
-            /* Common extensions, these extensions are stored 
-               in the result.extensions object (in the xAPI format), e.g.:
-
-               result: {
-                    ...
-                    extensions: {
-                        .../health: <value>,
-                        .../position: <value>,
-                        .../progress: <value>
-                    }
-               }
-            */
-            Health,
-            Position,
-            Progress
-        }
 
         #endregion Enumerations
 
@@ -453,114 +398,6 @@ namespace AssetPackage
             get;
             set;
         }
-
-#region SubTracker Properties
-
-        /// <summary>
-        /// Access point for Accessible Traces generation
-        /// </summary>
-        public AccessibleTracker Accessible
-        {
-            get
-            {
-                if(accessibletracker == null)
-                {
-                    accessibletracker = new AccessibleTracker();
-                    accessibletracker.setTracker(this);
-                }
-                    
-                return accessibletracker;
-            }
-        }
-
-        /// <summary>
-        /// Access point for Alternative Traces generation
-        /// </summary>
-        public AlternativeTracker Alternative
-        {
-            get
-            {
-                if (alternativetracker == null)
-                {
-                    alternativetracker = new AlternativeTracker();
-                    alternativetracker.setTracker(this);
-                }
-
-                return alternativetracker;
-            }
-        }
-
-        /// <summary>
-        /// Access point for Completable Traces generation
-        /// </summary>
-        public CompletableTracker Completable
-        {
-            get
-            {
-                if (completabletracker == null)
-                {
-                    completabletracker = new CompletableTracker();
-                    completabletracker.setTracker(this);
-                }
-
-                return completabletracker;
-            }
-        }
-
-        /// <summary>
-        /// Access point for Completable Traces generation
-        /// </summary>
-        public GameObjectTracker GameObject
-        {
-            get
-            {
-                if (gameobjecttracer == null)
-                {
-                    gameobjecttracer = new GameObjectTracker();
-                    gameobjecttracer.setTracker(this);
-                }
-
-                return gameobjecttracer;
-            }
-        }
-
-        /// <summary>
-        /// Access point for Accessible Traces generation
-        /// </summary>
-        [Obsolete("Use TrackerAsset.Accessible")]
-        public AccessibleTracker accessible
-        {
-            get { return Accessible; }
-        }
-
-        /// <summary>
-        /// Access point for Alternative Traces generation
-        /// </summary>
-        [Obsolete("Use TrackerAsset.Alternative")]
-        public AlternativeTracker alternative
-        {
-            get { return Alternative; }
-        }
-
-        /// <summary>
-        /// Access point for Completable Traces generation
-        /// </summary>
-        [Obsolete("Use TrackerAsset.Completable")]
-        public CompletableTracker completable
-        {
-            get { return Completable; }
-        }
-
-        /// <summary>
-        /// Access point for Completable Traces generation
-        /// </summary>
-        [Obsolete("Use TrackerAsset.GameObject")]
-        public GameObjectTracker trackedGameObject
-        {
-            get { return GameObject; }
-        }
-
-#endregion SubTracker Properties
 
 #endregion Properties
 
@@ -1164,7 +1001,7 @@ namespace AssetPackage
 		/// <param name="success">If set to <c>true</c> means it has been a success.</param>
 		public void setSuccess(bool success)
         {
-            setVar(Extension.Success.ToString().ToLower(), success);
+            setVar(Extension.Success, success);
         }
 
         /// <summary>
@@ -1176,7 +1013,7 @@ namespace AssetPackage
             if (score < 0 || score > 1)
                 Log(Severity.Warning, "Tracker: Score recommended between 0 and 1 (Current: " + score + ")");
 
-            setVar(Extension.Score.ToString().ToLower(), score);
+            setVar(Extension.Score, score);
         }
 
         /// <summary>
@@ -1185,7 +1022,7 @@ namespace AssetPackage
         /// <param name="response">Response.</param>
         public void setResponse(string response)
         {
-            addExtension(Extension.Response.ToString().ToLower(), response);
+            addExtension(Extension.Response, response);
         }
 
         /// <summary>
@@ -1194,51 +1031,18 @@ namespace AssetPackage
         /// <param name="completion">If set to <c>true</c> the trace action has been completed.</param>
         public void setCompletion(bool completion)
         {
-            setVar(Extension.Completion.ToString().ToLower(), completion);
+            setVar(Extension.Completion, completion);
         }
 
+        #region setVarString
         /// <summary>
-        /// Sets the progress of the action. 
+        /// Adds a variable to the extensions.
         /// </summary>
-        /// <param name="progress">Progress. (Recomended between 0 and 1)</param>
-        public void setProgress(float progress)
+        /// <param name="id">Identifier.</param>
+        /// <param name="value">Value.</param>
+        public void setVar(string key, Dictionary<string,bool> value) 
         {
-            if (progress < 0 || progress > 1)
-                Log(Severity.Warning, "Tracker: Progress recommended between 0 and 1 (Current: " + progress + ")");
-
-            setVar(Extension.Progress.ToString().ToLower(), progress);
-        }
-
-        /// <summary>
-        /// Sets the coords where the trace takes place.
-        /// </summary>
-        /// <param name="x">The x coordinate.</param>
-        /// <param name="y">The y coordinate.</param>
-        /// <param name="z">The z coordinate.</param>
-        public void setPosition(float x, float y, float z)
-        {
-            if (float.IsNaN(x) || float.IsNaN(y) || float.IsNaN(z))
-            {
-                if (StrictMode)
-                    throw new ValueExtensionException("Tracker: x, y or z cant be null.");
-                else
-                {
-                    Log(Severity.Information, "Tracker: x, y or z cant be null, ignoring.");
-                    return;
-                }
-            }
-
-            addExtension(Extension.Position.ToString().ToLower(), "{\"x\":" + x + ", \"y\": " + y + ", \"z\": " + z + "}");
-        }
-
-        /// <summary>
-        /// Sets the health of the player's character when the trace occurs. 
-        /// </summary>
-        /// <param name="health">Health.</param>
-        public void setHealth(float health)
-        {
-            if (Utils.check<ValueExtensionException>(health, "Tracker: Health cant be null, ignoring.", "Tracker: Health cant be null."))
-                addExtension(Extension.Health.ToString().ToLower(), health);
+            addExtension(key, value);
         }
 
         /// <summary>
@@ -1246,19 +1050,9 @@ namespace AssetPackage
         /// </summary>
         /// <param name="id">Identifier.</param>
         /// <param name="value">Value.</param>
-        public void setVar(string id, Dictionary<string,bool> value) 
+        public void setVar(string key, string value)
         {
-            addExtension(id, value);
-        }
-
-        /// <summary>
-        /// Adds a variable to the extensions.
-        /// </summary>
-        /// <param name="id">Identifier.</param>
-        /// <param name="value">Value.</param>
-        public void setVar(string id, string value)
-        {
-            addExtension(id, value);
+            addExtension(key, value);
         }
 
         /// <summary>
@@ -1300,6 +1094,69 @@ namespace AssetPackage
         {
             addExtension(key, value);
         }
+        #endregion setVarString
+
+        #region setVarDefinition
+        /// <summary>
+        /// Adds a variable to the extensions.
+        /// </summary>
+        /// <param name="id">Identifier.</param>
+        /// <param name="value">Value.</param>
+        public void setVar(ExtensionDefinition key, Dictionary<string, bool> value)
+        {
+            addExtension(key, value);
+        }
+
+        /// <summary>
+        /// Adds a variable to the extensions.
+        /// </summary>
+        /// <param name="key">Identifier.</param>
+        /// <param name="value">Value.</param>
+        public void setVar(ExtensionDefinition key, string value)
+        {
+            addExtension(key, value);
+        }
+
+        /// <summary>
+        /// Adds a variable to the extensions.
+        /// </summary>
+        /// <param name="key">Key.</param>
+        /// <param name="value">Value.</param>
+        public void setVar(ExtensionDefinition key, int value)
+        {
+            addExtension(key, value);
+        }
+
+        /// <summary>
+        /// Adds a variable to the extensions.
+        /// </summary>
+        /// <param name="key">Key.</param>
+        /// <param name="value">Value.</param>
+        public void setVar(ExtensionDefinition key, float value)
+        {
+            addExtension(key, value);
+        }
+
+        /// <summary>
+        /// Adds a variable to the extensions.
+        /// </summary>
+        /// <param name="key">Key.</param>
+        /// <param name="value">Value.</param>
+        public void setVar(ExtensionDefinition key, double value)
+        {
+            addExtension(key, value);
+        }
+
+        /// <summary>
+        /// Adds a variable to the extensions.
+        /// </summary>
+        /// <param name="key">Key.</param>
+        /// <param name="value">Value.</param>
+        public void setVar(ExtensionDefinition key, bool value)
+        {
+            addExtension(key, value);
+        }
+        #endregion setVarDefinition
 
 
         /// <summary>
@@ -1337,25 +1194,31 @@ namespace AssetPackage
 
         private void addExtension(string key, System.Object value)
         {
-            if (Utils.checkExtension(key, value))
+            addExtension(new GenericExtensionDefinition(key), value);
+        }
+
+        private void addExtension(ExtensionDefinition key, System.Object value)
+        {
+            if (Utils.checkExtension(key != null ? key.getDefinition() : null, value))
             {
-                if (extensions.ContainsKey(key))
-                    extensions[key] = value;
+                if (extensions.ContainsKey(key.getDefinition()))
+                    extensions[key.getDefinition()] = value;
                 else
-                    extensions.Add(key, value);
+                    extensions.Add(key.getDefinition(), value);
             }
         }
 
-#endregion Extension Methods
 
-#endregion Methods
+        #endregion Extension Methods
 
-#region Nested Types
+        #endregion Methods
+
+        #region Nested Types
 
         /// <summary>
         /// Interface that subtrackers must implement.
         /// </summary>
-        public interface IGameObjectTracker
+        public interface ITrackerManager
         {
             void setTracker(TrackerAsset tracker);
         }
@@ -1376,12 +1239,6 @@ namespace AssetPackage
         public class TrackerEvent
         {
 #region Fields
-                private static Dictionary<string, string> verbIds;
-
-                private static Dictionary<string, string> objectIds;
-
-                private static Dictionary<string, string> extensionIds;
-
                 private TraceVerb verb;
 
                 private TraceObject target;
@@ -1401,91 +1258,6 @@ namespace AssetPackage
 #endregion Constructors
 
 #region Properties
-
-            private static Dictionary<string, string> VerbIDs
-            {
-                get
-                {
-                    if (verbIds == null)
-                    {
-                        verbIds = new Dictionary<string, string>()
-                        {
-                            { TrackerAsset.Verb.Initialized.ToString().ToLower(), "http://adlnet.gov/expapi/verbs/initialized"},
-                            { TrackerAsset.Verb.Progressed.ToString().ToLower(), "http://adlnet.gov/expapi/verbs/progressed"},
-                            { TrackerAsset.Verb.Completed.ToString().ToLower(), "http://adlnet.gov/expapi/verbs/completed"},
-                            { TrackerAsset.Verb.Accessed.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/verbs/accessed"},
-                            { TrackerAsset.Verb.Skipped.ToString().ToLower(), "http://id.tincanapi.com/verb/skipped"},
-                            { TrackerAsset.Verb.Selected.ToString().ToLower(), "https://w3id.org/xapi/adb/verbs/selected"},
-                            { TrackerAsset.Verb.Unlocked.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/verbs/unlocked"},
-                            { TrackerAsset.Verb.Interacted.ToString().ToLower(), "http://adlnet.gov/expapi/verbs/interacted"},
-                            { TrackerAsset.Verb.Used.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/verbs/used"}
-                        };
-                    }
-                    return verbIds;
-                }
-            }
-
-            private static Dictionary<string, string> ObjectIDs
-            {
-                get
-                {
-                    if (objectIds == null)
-                    {
-                        objectIds = new Dictionary<string, string>()
-                        {
-                            // Completable
-                            { CompletableTracker.Completable.Game.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/serious-game" },
-                            { CompletableTracker.Completable.Session.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/session"},
-                            { CompletableTracker.Completable.Level.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/level"},
-                            { CompletableTracker.Completable.Quest.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/quest"},
-                            { CompletableTracker.Completable.Stage.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/stage"},
-                            { CompletableTracker.Completable.Combat.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/combat"},
-                            { CompletableTracker.Completable.StoryNode.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/story-node"},
-                            { CompletableTracker.Completable.Race.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/race"},
-                            { CompletableTracker.Completable.Completable.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/completable"},
-
-                            // Acceesible
-                            { AccessibleTracker.Accessible.Screen.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/screen" },
-                            { AccessibleTracker.Accessible.Area.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/area"},
-                            { AccessibleTracker.Accessible.Zone.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/zone"},
-                            { AccessibleTracker.Accessible.Cutscene.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/cutscene"},
-                            { AccessibleTracker.Accessible.Accessible.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/accessible"},
-
-                            // Alternative
-                            { AlternativeTracker.Alternative.Question.ToString().ToLower(), "http://adlnet.gov/expapi/activities/question" },
-                            { AlternativeTracker.Alternative.Menu.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/menu"},
-                            { AlternativeTracker.Alternative.Dialog.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/dialog-tree"},
-                            { AlternativeTracker.Alternative.Path.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/path"},
-                            { AlternativeTracker.Alternative.Arena.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/arena"},
-                            { AlternativeTracker.Alternative.Alternative.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/alternative"},
-
-                            // GameObject
-                            { GameObjectTracker.TrackedGameObject.Enemy.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/enemy" },
-                            { GameObjectTracker.TrackedGameObject.Npc.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/non-player-character"},
-                            { GameObjectTracker.TrackedGameObject.Item.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/item"},
-                            { GameObjectTracker.TrackedGameObject.GameObject.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/activity-types/game-object"}
-                        };
-                    }
-                    return objectIds;
-                }
-            }
-
-            private static Dictionary<string, string> ExtensionIDs
-            {
-                get
-                {
-                    if (extensionIds == null)
-                    {
-                        extensionIds = new Dictionary<string, string>()
-                        {
-                            { TrackerAsset.Extension.Health.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/extensions/health"},
-                            { TrackerAsset.Extension.Position.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/extensions/position"},
-                            { TrackerAsset.Extension.Progress.ToString().ToLower(), "https://w3id.org/xapi/seriousgames/extensions/progress"}
-                        };
-                    }
-                    return extensionIds;
-                }
-            }
 
             /// <summary>
             /// Gets or sets the Tracker
@@ -1529,6 +1301,7 @@ namespace AssetPackage
                 {
                     this.target = value;
                     this.target.Parent = this;
+                    this.target.isValid();
                 }
             }
 
@@ -1613,9 +1386,8 @@ namespace AssetPackage
             /// </returns>
             public string ToXml()
             {
-#warning Use XMLSerializer else use proper XML Encoding.
                 return "<TrackEvent \"timestamp\"=\"" + this.TimeStamp.ToString(TimeFormat) + "\"" +
-                       " \"event\"=\"" + verbIds[this.Event.ToString().ToLower()] + "\"" +
+                       " \"event\"=\"" + verb.ToXml() + "\"" +
                        " \"target\"=\"" + this.Target + "\"" +
                        (this.Result == null || String.IsNullOrEmpty(this.Result.ToXml()) ?
                        " />" :
@@ -1698,22 +1470,44 @@ namespace AssetPackage
             /// </summary>
             public class TraceObject
             {
-                string _type;
                 string _id;
 
                 public TrackerEvent Parent { get; internal set; }
 
-                public string Type
+                private ObjectDefinition type;
+
+                [Obsolete("Use ObjectDefinition Type")]
+                public string sType
                 {
-                    get
-                    {
-                        return _type;
-                    }
+                    get { return type.getName(); }
                     set
                     {
-                        if(Parent == null || Parent.Tracker.Utils.check<TargetXApiException>(value, "xAPI Exception: Target Type is null or empty. Ignoring.", "xAPI Exception: Target Type can't be null or empty."))
-                            _type = value;
+                        ObjectDefinition o;
+                        if (TrackerAssetUtils.TryFindDefinition<ObjectDefinition>(value, out o))
+                        {
+                            this.type = o;
+                        }
+                        else
+                        {
+                            this.type = new GenericObjectDefinition(value);
+
+                            if (Parent != null)
+                            {
+                                if (Parent.Tracker.StrictMode)
+                                    throw (new TargetXApiException("Tracker-xAPI: Unknown definition for object: " + value));
+                                else
+                                {
+                                    Parent.Tracker.Log(Severity.Warning, "Tracker-xAPI: Unknown definition for object: " + value);
+                                }
+                            }
+                        }
                     }
+                }
+
+                public ObjectDefinition Type
+                {
+                    get { return type; }
+                    set { type = value; }
                 }
 
                 public string ID
@@ -1735,35 +1529,32 @@ namespace AssetPackage
                     set;
                 }
 
+                [Obsolete("Use ObjectDefinition")]
                 public TraceObject(string type, string id)
                 {
                     
+                    this.sType = type;
+                    this.ID = id;
+                }
+                
+                public TraceObject(ObjectDefinition type, string id)
+                {
+
                     this.Type = type;
                     this.ID = id;
                 }
 
                 public string ToCsv()
                 {
-                    return Type.Replace(",","\\,") + "," + ID.Replace(",", "\\,");
+                    return this.Type.getDefinition().Replace(",","\\,") + "," + ID.Replace(",", "\\,");
                 }
 
                 public JSONClass ToJson()
                 {
-                    string typeKey = Type;
-
-                    if(!ObjectIDs.TryGetValue(Type, out typeKey))
-                    {
-                        typeKey = Type;
-                        if(Parent.Tracker.StrictMode)
-                            throw (new TargetXApiException("Tracker-xAPI: Unknown definition for target type: " + Type));
-                        else
-                            Parent.Tracker.Log(Severity.Warning,"Tracker-xAPI: Unknown definition for target type: " + Type);
-                    }
-
                     JSONClass obj = new JSONClass(), definition = new JSONClass();
 
                     obj["id"] = ((Parent.Tracker.ActorObject != null) ? Parent.Tracker.ObjectId : "") + ID;
-                    definition["type"] = typeKey;
+                    definition["type"] = Type.getDefinition();
 
                     obj.Add("definition", definition);
 
@@ -1778,29 +1569,19 @@ namespace AssetPackage
 
                 public JSONClass ToXapi()
                 {
-                    string typeKey = Type;
-
-                    if (!ObjectIDs.TryGetValue(Type, out typeKey))
-                    {
-                        typeKey = Type;
-                        if (Parent.Tracker.StrictMode)
-                            throw (new TargetXApiException("Tracker-xAPI: Unknown definition for target type: " + Type));
-                        else
-                            Parent.Tracker.Log(Severity.Warning, "Tracker-xAPI: Unknown definition for target type: " + Type);
-                    }
-
-                    JSONClass obj = new JSONClass(), definition = new JSONClass();
-
-                    obj["id"] = ((Parent.Tracker.ActorObject != null) ? Parent.Tracker.ObjectId : "") + ID;
-                    definition["type"] = typeKey;
-
-                    obj.Add("definition", definition);
-
-                    return obj;
+                    return this.ToJson();
                 }
 
                 public bool isValid()
                 {
+                    if (Parent != null && (type == null || type.GetType() == typeof(GenericObjectDefinition)))
+                    {
+                        if (Parent.Tracker.StrictMode)
+                            throw (new TargetXApiException("Tracker-xAPI: Unknown definition for object: " + type.getName()));
+                        else
+                            Parent.Tracker.Log(Severity.Warning, "Tracker-xAPI: Unknown definition for object: " + type.getName());
+                    }
+
                     return TrackerAssetUtils.quickCheck(Type) && TrackerAssetUtils.quickCheck(ID);
                 }
             }
@@ -1812,41 +1593,42 @@ namespace AssetPackage
             {
                 public TrackerEvent Parent { get; internal set; }
 
-                private string sverb = "";
-                private Verb vverb;
+                private VerbDefinition verb;
 
+                [Obsolete("use Verb")]
                 public string sVerb
                 {
-                    get { return sverb; }
+                    get { return verb.getName(); }
                     set
                     {
-                        sverb = value;
-                        Verb v;
-                        if (TrackerAssetUtils.TryParseEnum<Verb>(value, out v))
+                        VerbDefinition v;
+                        if (TrackerAssetUtils.TryFindDefinition<VerbDefinition>(value, out v))
                         {
-                            sverb = value.ToLower();
-                            this.vverb = v;
+                            this.verb = v;
                         }
-                        else if(Parent != null) {
-                            if (Parent.Tracker.StrictMode)
-                                throw (new VerbXApiException("Tracker-xAPI: Unknown definition for verb: " + value));
-                            else
-                                Parent.Tracker.Log(Severity.Warning,"Tracker-xAPI: Unknown definition for verb: " + value);
+                        else{
+                            verb = new GenericVerbDefinition(value);
+                            if (Parent != null)
+                            {
+                                if (Parent.Tracker.StrictMode)
+                                    throw (new VerbXApiException("Tracker-xAPI: Unknown definition for verb: " + value));
+                                else
+                                    Parent.Tracker.Log(Severity.Warning, "Tracker-xAPI: Unknown definition for verb: " + value);
+                            }
                         }
                     }
                 }
 
-                public Verb Verb
+                public VerbDefinition Verb
                 {
-                    get { return vverb;  }
+                    get { return verb;  }
                     set
                     {
-                        sverb = value.ToString().ToLower();
-                        vverb = value;
+                        verb = value;
                     }
                 }
 
-                public TraceVerb(Verb verb)
+                public TraceVerb(VerbDefinition verb)
                 {
                     this.Verb = verb;
                 }
@@ -1858,22 +1640,15 @@ namespace AssetPackage
 
                 public string ToCsv()
                 {
-                    return this.sVerb.Replace(",", "\\,");
+                    return this.Verb.getDefinition().Replace(",", "\\,");
                 }
 
                 public JSONClass ToJson()
                 {
-                    string id = this.sVerb;
-
                     JSONClass verb = new JSONClass();
-                    if (VerbIDs.TryGetValue(id, out id))
-                    {
-                        verb["id"] = id;
-                    }
-                    else
-                    {
-                        verb["id"] = sverb;
-                    }
+
+                    verb["id"] = this.Verb.getDefinition();
+
                     return verb;
                 }
 
@@ -1885,28 +1660,21 @@ namespace AssetPackage
 
                 public JSONClass ToXapi()
                 {
-                    string id = this.sVerb;
-
-                    JSONClass verb = new JSONClass();
-                    if (VerbIDs.TryGetValue(id, out id))
-                    {
-                        verb["id"] = id;
-                    }
-                    else
-                    {
-                        verb["id"] = sverb;
-                    }
-
-                    return verb;
+                    return this.ToJson();
                 }
 
                 public bool isValid()
                 {
                     bool check = true;
-                    if (Parent != null)
-                        sVerb = sVerb;
+                    if (Parent != null && (verb == null || verb.GetType() == typeof(GenericVerbDefinition)))
+                    {
+                        if (Parent.Tracker.StrictMode)
+                            throw (new VerbXApiException("Tracker-xAPI: Unknown definition for verb: " + verb.getName()));
+                        else
+                            Parent.Tracker.Log(Severity.Warning, "Tracker-xAPI: Unknown definition for verb: " + verb.getName());
+                    }
 
-                    return check && TrackerAssetUtils.quickCheck(sverb);
+                    return check && TrackerAssetUtils.quickCheck(verb.getDefinition());
                 }
             }
 
@@ -1958,6 +1726,7 @@ namespace AssetPackage
                 }
 
                 Dictionary<string, System.Object> extdir;
+
                 public Dictionary<string,System.Object> Extensions
                 {
                     get { return extdir; }
@@ -2117,10 +1886,6 @@ namespace AssetPackage
                             {
                                 string key = extension.Key;
 
-                                string tmpkey = "";
-                                if (ExtensionIDs.TryGetValue(key, out tmpkey))
-                                    key = tmpkey;
-
                                 if (extension.Value.GetType() == typeof(float))
                                 {
                                     extensions.Add(key, new JSONData((float)extension.Value));
@@ -2204,9 +1969,9 @@ namespace AssetPackage
                 }
             }
 
-#endregion Nested Types
+#           endregion Nested Types
         }
 
-#endregion Nested Types
+        #endregion Nested Types
     }
 }

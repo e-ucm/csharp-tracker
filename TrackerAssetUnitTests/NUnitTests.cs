@@ -153,7 +153,7 @@ public class TrackerTest
         Assert.Throws(typeof(TargetXApiException), delegate { TrackerAsset.Instance.GameObject.Used(null); });
 
         Assert.Throws(typeof(KeyExtensionException), delegate { TrackerAsset.Instance.setVar("", ""); });
-        Assert.Throws(typeof(KeyExtensionException), delegate { TrackerAsset.Instance.setVar(null, "v"); });
+        Assert.Throws(typeof(KeyExtensionException), delegate { TrackerAsset.Instance.setVar((AssetPackage.Plugins.ExtensionDefinition) null, "v"); });
         Assert.Throws(typeof(ValueExtensionException), delegate { TrackerAsset.Instance.setVar("k", ""); });
 
         Assert.DoesNotThrow(delegate { TrackerAsset.Instance.setVar("k", "v"); });
@@ -176,7 +176,8 @@ public class TrackerTest
         Assert.Throws(typeof(TraceException), delegate { TrackerAsset.Instance.Trace("1", "2", "3", "4"); });
         Assert.Throws(typeof(TraceException), delegate { TrackerAsset.Instance.Trace(null, null); });
         Assert.Throws(typeof(TraceException), delegate { TrackerAsset.Instance.Trace("1,2,3,4"); });
-        Assert.Throws(typeof(TargetXApiException), delegate { TrackerAsset.Instance.Trace("1,2,3"); TrackerAsset.Instance.RequestFlush(); });
+        Assert.Throws(typeof(VerbXApiException), delegate { TrackerAsset.Instance.Trace("1,2,3"); TrackerAsset.Instance.RequestFlush(); });
+        Assert.Throws(typeof(TargetXApiException), delegate { TrackerAsset.Instance.Trace("used,2,3"); TrackerAsset.Instance.RequestFlush(); });
 
         initTracker("csv");
         TrackerAsset.Instance.StrictMode = false;
@@ -221,8 +222,8 @@ public class TrackerTest
     {
         initTracker("csv");
 
-        TrackerAsset.Instance.Alternative.Selected("question", "alternative");
-        CheckCSVTrace("selected,alternative,question,response,alternative");
+        TrackerAsset.Instance.Alternative.Selected("QID", "ResID");
+        CheckCSVTrace("https://w3id.org/xapi/adb/verbs/selected,https://w3id.org/xapi/seriousgames/activity-types/alternative,QID,response,ResID");
     }
 
     [Test]
@@ -233,7 +234,7 @@ public class TrackerTest
         enqueueTrace01();
         TrackerAsset.Instance.Flush();
 
-        CheckCSVStoredTrace("accessed,gameobject,ObjectID");
+        CheckCSVStoredTrace("https://w3id.org/xapi/seriousgames/verbs/accessed,https://w3id.org/xapi/seriousgames/activity-types/game-object,ObjectID");
     }
 
     [Test]
@@ -244,7 +245,7 @@ public class TrackerTest
         enqueueTrace02();
         TrackerAsset.Instance.Flush();
 
-        CheckCSVStoredTrace("initialized,game,ObjectID2,response,TheResponse,score,0.123");
+        CheckCSVStoredTrace("http://adlnet.gov/expapi/verbs/initialized,https://w3id.org/xapi/seriousgames/activity-types/serious-game,ObjectID2,response,TheResponse,score,0.123");
     }
 
     [Test]
@@ -255,7 +256,7 @@ public class TrackerTest
         enqueueTrace03();
         TrackerAsset.Instance.Flush();
 
-        CheckCSVStoredTrace("selected,zone,ObjectID3,success,false,completion,true,response,AnotherResponse,score,123.456,extension1,value1,extension2,value2,extension3,3,extension4,4.56");
+        CheckCSVStoredTrace("https://w3id.org/xapi/adb/verbs/selected,https://w3id.org/xapi/seriousgames/activity-types/zone,ObjectID3,success,false,completion,true,response,AnotherResponse,score,123.456,extension1,value1,extension2,value2,extension3,3,extension4,4.56");
     }
 
     [Test]
@@ -422,7 +423,7 @@ public class TrackerTest
 
         TrackerAsset.Instance.Accessible.Accessed("AccesibleID", AccessibleTracker.Accessible.Cutscene);
 
-        CheckCSVTrace("accessed,cutscene,AccesibleID");
+        CheckCSVTrace("https://w3id.org/xapi/seriousgames/verbs/accessed,https://w3id.org/xapi/seriousgames/activity-types/cutscene,AccesibleID");
     }
 
     [Test]
@@ -433,7 +434,7 @@ public class TrackerTest
         TrackerAsset.Instance.setVar("extension1", "value1");
         TrackerAsset.Instance.Accessible.Skipped("AccesibleID2", AccessibleTracker.Accessible.Screen);
 
-        CheckCSVTrace("skipped,screen,AccesibleID2,extension1,value1");
+        CheckCSVTrace("http://id.tincanapi.com/verb/skipped,https://w3id.org/xapi/seriousgames/activity-types/screen,AccesibleID2,extension1,value1");
     }
 
     [Test]
@@ -492,7 +493,7 @@ public class TrackerTest
 
         TrackerAsset.Instance.Alternative.Selected("AlternativeID", "SelectedOption", AlternativeTracker.Alternative.Path);
 
-        CheckCSVTrace("selected,path,AlternativeID,response,SelectedOption");
+        CheckCSVTrace("https://w3id.org/xapi/adb/verbs/selected,https://w3id.org/xapi/seriousgames/activity-types/path,AlternativeID,response,SelectedOption");
     }
 
     [Test]
@@ -503,7 +504,7 @@ public class TrackerTest
         TrackerAsset.Instance.setVar("SubCompletableScore", 0.8);
         TrackerAsset.Instance.Alternative.Unlocked("AlternativeID2", "Answer number 3", AlternativeTracker.Alternative.Question);
 
-        CheckCSVTrace("unlocked,question,AlternativeID2,response,Answer number 3,SubCompletableScore,0.8");
+        CheckCSVTrace("https://w3id.org/xapi/seriousgames/verbs/unlocked,http://adlnet.gov/expapi/activities/question,AlternativeID2,response,Answer number 3,SubCompletableScore,0.8");
     }
 
     [Test]
@@ -564,7 +565,7 @@ public class TrackerTest
 
         TrackerAsset.Instance.Completable.Initialized("CompletableID", CompletableTracker.Completable.Quest);
 
-        CheckCSVTrace("initialized,quest,CompletableID");
+        CheckCSVTrace("http://adlnet.gov/expapi/verbs/initialized,https://w3id.org/xapi/seriousgames/activity-types/quest,CompletableID");
     }
 
     [Test]
@@ -574,7 +575,7 @@ public class TrackerTest
 
         TrackerAsset.Instance.Completable.Progressed("CompletableID2", CompletableTracker.Completable.Stage, 0.34f);
 
-        CheckCSVTrace("progressed,stage,CompletableID2,progress,0.34");
+        CheckCSVTrace("http://adlnet.gov/expapi/verbs/progressed,https://w3id.org/xapi/seriousgames/activity-types/stage,CompletableID2,https://w3id.org/xapi/seriousgames/extensions/progress,0.34");
     }
 
     [Test]
@@ -584,7 +585,7 @@ public class TrackerTest
 
         TrackerAsset.Instance.Completable.Completed("CompletableID3", CompletableTracker.Completable.Race, true, 0.54f);
 
-        CheckCSVTrace("completed,race,CompletableID3,success,true,score,0.54");
+        CheckCSVTrace("http://adlnet.gov/expapi/verbs/completed,https://w3id.org/xapi/seriousgames/activity-types/race,CompletableID3,success,true,score,0.54");
     }
 
     [Test]
@@ -666,7 +667,7 @@ public class TrackerTest
 
         TrackerAsset.Instance.GameObject.Interacted("GameObjectID", GameObjectTracker.TrackedGameObject.Npc);
 
-        CheckCSVTrace("interacted,npc,GameObjectID");
+        CheckCSVTrace("http://adlnet.gov/expapi/verbs/interacted,https://w3id.org/xapi/seriousgames/activity-types/non-player-character,GameObjectID");
     }
 
     [Test]
@@ -676,7 +677,7 @@ public class TrackerTest
 
         TrackerAsset.Instance.GameObject.Used("GameObjectID2", GameObjectTracker.TrackedGameObject.Item);
 
-        CheckCSVTrace("used,item,GameObjectID2");
+        CheckCSVTrace("https://w3id.org/xapi/seriousgames/verbs/used,https://w3id.org/xapi/seriousgames/activity-types/item,GameObjectID2");
     }
 
     [Test]

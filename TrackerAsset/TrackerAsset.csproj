@@ -51,9 +51,13 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Interfaces\AccessibleTracker.cs" />
-    <Compile Include="Interfaces\AlternativeTracker.cs" />
-    <Compile Include="Interfaces\CompletableTracker.cs" />
+    <Compile Include="Plugins\Definition.cs" />
+    <Compile Include="Plugins\SeriousGames\Definitions\Extensions.cs" />
+    <Compile Include="Plugins\SeriousGames\Definitions\Objects.cs" />
+    <Compile Include="Plugins\SeriousGames\Definitions\Verbs.cs" />
+    <Compile Include="Plugins\SeriousGames\Interfaces\AccessibleTracker.cs" />
+    <Compile Include="Plugins\SeriousGames\Interfaces\AlternativeTracker.cs" />
+    <Compile Include="Plugins\SeriousGames\Interfaces\CompletableTracker.cs" />
     <Compile Include="Exception\ExtensionException.cs" />
     <Compile Include="Exception\ExtensionException\KeyExtensionException.cs" />
     <Compile Include="Exception\ExtensionException\ValueExtensionException.cs" />
@@ -64,7 +68,10 @@
     <Compile Include="Exception\XApiException\ExtensionXApiException.cs" />
     <Compile Include="Exception\XApiException\TargetXApiException.cs" />
     <Compile Include="Exception\XApiException\VerbXApiException.cs" />
-    <Compile Include="Interfaces\GameObjectTracker.cs" />
+    <Compile Include="Plugins\SeriousGames\Interfaces\GameObjectTracker.cs" />
+    <Compile Include="Plugins\GeolocatedPlugin\GeolocatedPlugin.cs" />
+    <Compile Include="Plugins\SeriousGames\SeriousGames.cs" />
+    <Compile Include="Plugins\xAPIBasicPlugin\xAPIBasicPlugin.cs" />
     <Compile Include="SimpleJSON.cs" />
     <Compile Include="TrackerAsset.cs" />
     <Compile Include="TrackerAssetSettings.cs" />
