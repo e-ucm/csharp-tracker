@@ -72,6 +72,11 @@ namespace TrackerAssetUnitTests
                 files.Add(fileId, fileData);
         }
 
+        public void Append(string fileId, string fileData)
+        {
+            File.AppendAllText(Path.Combine(StorageDir, fileId), fileData);
+        }
+
         public string Load(string fileId)
         {
             string content = "";

@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 
 namespace AssetPackage {
@@ -6,7 +7,7 @@ namespace AssetPackage {
 	public class ConcurrentQueue<T>{
 		
 		private readonly object syncLock = new object();
-		private Queue<T> queue;
+		private LinkedList<T> queue;
 
 		public int Count
 		{
@@ -21,34 +22,59 @@ namespace AssetPackage {
 
 		public ConcurrentQueue()
 		{
-			this.queue = new Queue<T>();
+			this.queue = new LinkedList<T>();
 		}
 
-		public T Peek()
+		public T[] Peek(UInt32 n = 1)
 		{
 			lock(syncLock)
 			{
-				return queue.Peek();
-			}
-		}	
+                n = System.Math.Min((UInt32)queue.Count, n);
 
-		public void Enqueue(T obj)
-		{
-			lock(syncLock)
-			{
-				queue.Enqueue(obj);
-			}
-		}
+                T[] tmp = new T[n];
 
-		public T Dequeue()
-		{
-			lock(syncLock)
-			{
-				return queue.Dequeue();
+                LinkedListNode<T> it = queue.First;
+                for(UInt32 i = 0; i < n; i++)
+                {
+                    tmp[i] = it.Value;
+                    it = it.Next;
+                }
+
+				return tmp;
 			}
 		}
 
-		public void Clear()
+        public void Enqueue(T obj)
+		{
+			lock(syncLock)
+			{
+				queue.AddLast(obj);
+			}
+		}
+
+        public T Dequeue()
+        {
+			lock(syncLock)
+			{
+                T tmp = queue.First.Value;
+                queue.RemoveFirst();
+                return tmp;
+        	}
+		}
+
+        public void Dequeue(UInt32 n)
+        {
+            lock (syncLock)
+            {
+                for (UInt32 i = 0; i < n; i++)
+                {
+                    queue.RemoveFirst();
+                }
+            }
+        }
+
+
+        public void Clear()
 		{
 			lock(syncLock)
 			{
