@@ -62,11 +62,11 @@ namespace AssetPackage {
         	}
 		}
 
-        public void Dequeue(UInt32 n)
+        public void Dequeue(int n)
         {
             lock (syncLock)
             {
-                for (UInt32 i = 0; i < n; i++)
+                for (int i = 0; i < n; i++)
                 {
                     queue.RemoveFirst();
                 }
