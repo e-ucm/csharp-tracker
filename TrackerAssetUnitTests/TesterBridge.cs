@@ -25,7 +25,9 @@ namespace TrackerAssetUnitTests
 
     // 
     using AssetPackage;
-    public class TesterBridge : IBridge, ILog, IDataStorage
+    using System.Net;
+
+    public class TesterBridge : IBridge, ILog, IDataStorage, IWebServiceRequest
     {
         readonly String StorageDir = String.Format(@".{0}TestStorage", Path.DirectorySeparatorChar);
         /// <summary>
@@ -33,10 +35,10 @@ namespace TrackerAssetUnitTests
         /// </summary>
         public TesterBridge()
         {
-            if (!Directory.Exists(StorageDir))
+            /*if (!Directory.Exists(StorageDir))
             {
                 Directory.CreateDirectory(StorageDir);
-            }
+            }*/
         }
 
         #region IDataStorage Members
@@ -56,14 +58,15 @@ namespace TrackerAssetUnitTests
         /// </returns>
         public String[] Files()
         {
-            return Directory.GetFiles(StorageDir).ToList().ConvertAll(
-                new Converter<String, String>(p => p.Replace(StorageDir + Path.DirectorySeparatorChar, ""))).ToArray();
+            /*return Directory.GetFiles(StorageDir).ToList().ConvertAll(
+                new Converter<String, String>(p => p.Replace(StorageDir + Path.DirectorySeparatorChar, ""))).ToArray();*/
+            return null;
             //! EnumerateFiles not supported in Unity3D.
             // 
             //return Directory.EnumerateFiles(StorageDir).ToList().ConvertAll(
             //    new Converter<String, String>(p => p.Replace(StorageDir +  Path.DirectorySeparatorChar, ""))).ToList();
         }
-        
+
         public void Save(string fileId, string fileData)
         {
             if (Exists(fileId))
@@ -71,10 +74,13 @@ namespace TrackerAssetUnitTests
             else
                 files.Add(fileId, fileData);
         }
-        
+
         public void Append(string fileId, string fileData)
         {
-            File.AppendAllText(Path.Combine(StorageDir, fileId), fileData);
+            if (Exists(fileId))
+                files[fileId] = files[fileId] + fileData;
+            else
+                files.Add(fileId, fileData);
         }
 
         public string Load(string fileId)
@@ -123,5 +129,49 @@ namespace TrackerAssetUnitTests
 
         #endregion ILog Members
 
+        #region IWebServiceRequest Members
+        bool connected = true;
+        public bool Connnected
+        {
+            get { return this.connected; }
+            set { this.connected = value; }
+        }
+
+        public void WebServiceRequest(RequestSetttings requestSettings, out RequestResponse requestResponse)
+        {
+            requestResponse = this.WebServiceRequest(requestSettings);
+        }
+
+
+
+        private RequestResponse WebServiceRequest(RequestSetttings requestSettings)
+        {
+            RequestResponse result = new RequestResponse(requestSettings);
+
+            if (connected)
+            {
+                result.responseCode = 200;
+                result.body = SimpleJSON.JSON.Parse("{"
+                    + "\"authToken\": \"5a26cb5ac8b102008b41472b5a30078bc8b102008b4147589108928341\", "
+                    + "\"actor\": { \"account\": { \"homePage\": \"http://a2:3000/\", \"name\": \"Anonymous\"}, \"name\": \"test-animal-name\"}, "
+                    + "\"playerAnimalName\": \"test-animal-name\", "
+                    + "\"playerId\": \"5a30078bc8b102008b41475769103\", "
+                    + "\"objectId\": \"http://a2:3000/api/proxy/gleaner/games/5a26cb5ac8b102008b41472a/5a26cb5ac8b102008b41472b\", "
+                    + "\"session\": 1, "
+                    + "\"firstSessionStarted\": \"2017-12-12T16:44:59.273Z\", "
+                    + "\"currentSessionStarted\": \"2017-12-12T16:44:59.273Z\" "
+                    + "}").ToString();
+
+                this.Append("netstorage", requestSettings.body);
+            }
+            else
+            {
+                result.responseCode = 0;
+            }
+
+            return result;
+        }
+
+        #endregion IWebServiceRequest Members
     }
 }
