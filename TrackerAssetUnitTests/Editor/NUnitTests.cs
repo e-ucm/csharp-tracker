@@ -28,6 +28,7 @@ using AssetPackage.Utils;
 using AssetPackage.Exceptions;
 using SimpleJSON;
 using System.IO;
+using TrackerAssetUnitTests;
 
 public class TrackerTest
 {
@@ -42,27 +43,41 @@ public class TrackerTest
         TrackingCode = "",
         StorageType = TrackerAsset.StorageTypes.local,
         TraceFormat = TrackerAsset.TraceFormats.csv,
-        BatchSize = 10
+        BatchSize = 10,
+        BackupStorage = true
     };
 
     IDataStorage storage;
+    ILog log;
+    TesterBridge bridge;
 
-    private void initTracker(string format)
+    private void initTracker(string format, TrackerAsset.StorageTypes st = TrackerAsset.StorageTypes.local, TesterBridge bridge = null)
     {
+        TrackerAsset.Instance.Stop();
+
         string current = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
-        if(!Directory.Exists(current))
+        if (!Directory.Exists(current))
             Directory.CreateDirectory(current);
 
         Directory.SetCurrentDirectory(current);
 
         TrackerAsset.TraceFormats f;
-        if(TrackerAssetUtils.TryParseEnum<TrackerAsset.TraceFormats>(format, out f))
+        if (TrackerAssetUtils.TryParseEnum<TrackerAsset.TraceFormats>(format, out f))
         {
             settings.TraceFormat = f;
         }
+        settings.StorageType = st;
         TrackerAsset.Instance.Settings = settings;
-        TrackerAsset.Instance.Bridge = new TrackerAssetUnitTests.TesterBridge();
-        storage = (IDataStorage) TrackerAsset.Instance.Bridge;
+
+        if (bridge != null)
+            this.bridge = bridge;
+        else
+            this.bridge = new TesterBridge();
+
+        TrackerAsset.Instance.Bridge = this.bridge;
+
+        storage = (IDataStorage)TrackerAsset.Instance.Bridge;
+        log = (ILog)TrackerAsset.Instance.Bridge;
         TrackerAsset.Instance.StrictMode = true;
         TrackerAsset.Instance.Clear();
         TrackerAsset.Instance.Start();
@@ -448,7 +463,7 @@ public class TrackerTest
 
         string text = storage.Load(settings.LogFile);
 
-        if(text.IndexOf("M\n") != -1)
+        if (text.IndexOf("M\n") != -1)
             text = text.Substring(text.IndexOf("M\n") + 2);
 
         JSONNode file = JSON.Parse(text);
@@ -540,7 +555,7 @@ public class TrackerTest
         TrackerAsset.Instance.setVar("SubCompletableScore", 0.8);
         TrackerAsset.Instance.Alternative.Unlocked("AlternativeID2", "Answer number 3", AlternativeTracker.Alternative.Question);
         TrackerAsset.Instance.Flush();
-        
+
 
         string text = storage.Load(settings.LogFile);
         if (text.IndexOf("M\n") != -1)
@@ -768,10 +783,13 @@ public class TrackerTest
         CompareCSV(traceWithoutTimestamp, trace);
     }
 
-    private void CheckXAPIStoredTrace(string trace)
+    private void CheckXAPIStoredTrace(string trace, string file = "")
     {
+        if (file == "")
+            file = settings.LogFile;
+
         string[] stringSeparators = new string[] { "\r\n" };
-        string[] lines = storage.Load(settings.LogFile).Split(stringSeparators, StringSplitOptions.None);
+        string[] lines = storage.Load(file).Split(stringSeparators, StringSplitOptions.None);
 
         string traceWithoutTimestamp = removeTimestamp(lines[lines.Length - 1]);
 
@@ -812,9 +830,185 @@ public class TrackerTest
 
     private void cleanStorage()
     {
-        if (settings !=null && storage != null && settings.LogFile != null && storage.Exists(settings.LogFile))
+        if (settings != null && storage != null && settings.LogFile != null && storage.Exists(settings.LogFile))
         {
             storage.Delete(settings.LogFile);
         }
+    }
+
+    [Test]
+    public void TestTraceSendingSync()
+    {
+        initTracker("xapi", TrackerAsset.StorageTypes.net);
+        storage.Delete("netstorage");
+
+        enqueueTrace01();
+        TrackerAsset.Instance.Flush();
+
+        string text = storage.Load("netstorage");
+        if (text.IndexOf("M\n") != -1)
+            text = text.Substring(text.IndexOf("M\n") + 2);
+
+        JSONNode file = JSON.Parse(text);
+        JSONNode tracejson = file[new List<JSONNode>(file.Children).Count - 1];
+
+        Assert.AreEqual(new List<JSONNode>(tracejson.Children).Count, 4);
+        Assert.AreEqual(tracejson["object"]["id"].Value, "http://a2:3000/api/proxy/gleaner/games/5a26cb5ac8b102008b41472a/5a26cb5ac8b102008b41472b/ObjectID");
+        Assert.AreEqual(tracejson["object"]["definition"]["type"].Value, "https://w3id.org/xapi/seriousgames/activity-types/game-object");
+        Assert.AreEqual(tracejson["verb"]["id"].Value, "https://w3id.org/xapi/seriousgames/verbs/accessed");
+
+        storage.Append("netstorage", ",");
+        enqueueTrace02();
+        enqueueTrace03();
+        TrackerAsset.Instance.Flush();
+
+        text = storage.Load("netstorage");
+        text = "[" + text + "]";
+        file = JSON.Parse(text);
+
+        Assert.AreEqual(new List<JSONNode>(file.Children).Count, 2);
+        Assert.AreEqual(file[0].Count, 1);
+        Assert.AreEqual(file[1].Count, 2);
+    }
+
+    [Test]
+    public void TestBackupSync()
+    {
+        if(storage != null)
+            storage.Delete(settings.BackupFile);
+
+        TestTraceSendingSync();
+
+        string text = storage.Load(settings.BackupFile);
+        string[] file = text.Split('\n');
+        Assert.AreEqual(file.Length, 4);
+    }
+
+    [Test]
+    public void TestTraceSending_IntermitentConnection()
+    {
+        initTracker("xapi", TrackerAsset.StorageTypes.net);
+        storage.Delete("netstorage");
+
+        enqueueTrace01();
+        TrackerAsset.Instance.Flush();
+
+        string text = storage.Load("netstorage");
+        if (text.IndexOf("M\n") != -1)
+            text = text.Substring(text.IndexOf("M\n") + 2);
+
+        JSONNode file = JSON.Parse(text);
+        JSONNode tracejson = file[new List<JSONNode>(file.Children).Count - 1];
+
+        Assert.AreEqual(new List<JSONNode>(tracejson.Children).Count, 4);
+        Assert.AreEqual(tracejson["object"]["id"].Value, "http://a2:3000/api/proxy/gleaner/games/5a26cb5ac8b102008b41472a/5a26cb5ac8b102008b41472b/ObjectID");
+        Assert.AreEqual(tracejson["object"]["definition"]["type"].Value, "https://w3id.org/xapi/seriousgames/activity-types/game-object");
+        Assert.AreEqual(tracejson["verb"]["id"].Value, "https://w3id.org/xapi/seriousgames/verbs/accessed");
+
+        bridge.Connnected = false;
+        enqueueTrace02();
+        enqueueTrace03();
+        TrackerAsset.Instance.Flush();
+
+        text = storage.Load("netstorage");
+        file = JSON.Parse(text);
+
+        Assert.AreEqual(new List<JSONNode>(file.Children).Count, 1);
+        Assert.AreEqual(file.Count, 1);
+
+        bridge.Connnected = true;
+        storage.Append("netstorage", ",");
+        TrackerAsset.Instance.Flush();
+
+        text = storage.Load("netstorage");
+        text = "[" + text + "]";
+        file = JSON.Parse(text);
+
+        Assert.AreEqual(new List<JSONNode>(file.Children).Count, 2);
+        Assert.AreEqual(file[0].Count, 1);
+        Assert.AreEqual(file[1].Count, 2);
+    }
+
+    [Test]
+    public void TestBackupSync_IntermitentConnection()
+    {
+        initTracker("xapi", TrackerAsset.StorageTypes.net);
+        storage.Delete("netstorage");
+        storage.Delete(settings.BackupFile);
+
+        enqueueTrace01();
+        TrackerAsset.Instance.Flush();
+
+        string text = storage.Load(settings.BackupFile);
+        string[] file = text.Split('\n');
+        Assert.AreEqual(file.Length, 2);
+
+        bridge.Connnected = false;
+        enqueueTrace02();
+        enqueueTrace03();
+        TrackerAsset.Instance.Flush();
+
+        text = storage.Load(settings.BackupFile);
+        file = text.Split('\n');
+        Assert.AreEqual(file.Length, 4);
+
+        bridge.Connnected = true;
+        TrackerAsset.Instance.Flush();
+
+        text = storage.Load(settings.BackupFile);
+        file = text.Split('\n');
+        Assert.AreEqual(file.Length, 4);
+    }
+
+    [Test]
+    public void TestTraceSending_WithoutStart()
+    {
+        TrackerAsset.Instance.Stop();
+
+        Assert.Throws(typeof(TrackerException), delegate { TrackerAsset.Instance.Accessible.Accessed("Exception"); });
+    }
+
+    [Test]
+    public void TestTraceSendingStartFailed()
+    {
+        TrackerAsset.Instance.Stop();
+
+        bridge = new TesterBridge();
+        bridge.Connnected = false;
+
+        initTracker("xapi", TrackerAsset.StorageTypes.net, bridge);
+        storage.Delete("netstorage");
+        storage.Delete(settings.BackupFile);
+
+        Assert.DoesNotThrow(delegate { enqueueTrace01(); }); 
+        TrackerAsset.Instance.Flush();
+
+        Assert.AreEqual(storage.Load("netstorage"), string.Empty);
+        Assert.AreNotEqual(storage.Load(settings.BackupFile), string.Empty);
+
+        bridge.Connnected = true;
+        enqueueTrace02();
+        enqueueTrace03();
+        storage.Append("netstorage", ",");
+        TrackerAsset.Instance.Flush();
+
+        string text = storage.Load("netstorage");
+        text = "[" + text + "]";
+        JSONNode file = JSON.Parse(text);
+
+        Assert.AreEqual(new List<JSONNode>(file.Children).Count, 2);
+        Assert.AreEqual(file[0].Count, 1);
+        Assert.AreEqual(file[1].Count, 2);
+
+        JSONNode tracejson = file[0][0];
+
+        Assert.AreEqual(new List<JSONNode>(tracejson.Children).Count, 4);
+        Assert.AreEqual(tracejson["object"]["id"].Value, "http://a2:3000/api/proxy/gleaner/games/5a26cb5ac8b102008b41472a/5a26cb5ac8b102008b41472b/ObjectID");
+        Assert.AreEqual(tracejson["object"]["definition"]["type"].Value, "https://w3id.org/xapi/seriousgames/activity-types/game-object");
+        Assert.AreEqual(tracejson["verb"]["id"].Value, "https://w3id.org/xapi/seriousgames/verbs/accessed");
+
+        text = storage.Load(settings.BackupFile);
+        string[] backup = text.Split('\n');
+        Assert.AreEqual(backup.Length, 4);
     }
 }

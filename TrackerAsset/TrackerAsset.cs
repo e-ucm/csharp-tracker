@@ -56,7 +56,7 @@ namespace AssetPackage
     /// </summary>
     public class TrackerAsset : BaseAsset
     {
-#region Fields
+        #region Fields
 
         public static DateTime START_DATE = new DateTime(1970, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
@@ -176,6 +176,16 @@ namespace AssetPackage
         private ConcurrentQueue<TrackerEvent> queue = new ConcurrentQueue<TrackerEvent>();
 
         /// <summary>
+        /// The list of traces flushed while the connection was offline
+        /// </summary>
+        private List<String> tracesPending = new List<String>();
+
+        /// <summary>
+        /// The list of traces sent when net storage unable to start
+        /// </summary>
+        private List<TrackerEvent> tracesUnlogged = new List<TrackerEvent>();
+
+        /// <summary>
         /// Options for controlling the operation.
         /// </summary>
         private TrackerAssetSettings settings = null;
@@ -185,7 +195,7 @@ namespace AssetPackage
         /// </summary>
         private Dictionary<string, System.Object> extensions = new Dictionary<string, System.Object>();
 
-#region SubTracker Fields
+        #region SubTracker Fields
 
         /// <summary>
         /// Instance of AccessibleTracker
@@ -207,11 +217,11 @@ namespace AssetPackage
         /// </summary>
         private GameObjectTracker gameobjecttracer;
 
-#endregion SubTracker Fields
+        #endregion SubTracker Fields
 
-#endregion Fields
+        #endregion Fields
 
-#region Constructors
+        #region Constructors
 
         /// <summary>
         /// Prevents a default instance of the TrackerAsset class from being created.
@@ -242,9 +252,9 @@ namespace AssetPackage
             }
         }
 
-#endregion Constructors
+        #endregion Constructors
 
-#region Enumerations
+        #region Enumerations
 
         /// <summary>
         /// Values that represent events.
@@ -391,6 +401,15 @@ namespace AssetPackage
         }
 
         /// <summary>
+        /// Gets a value indicating whether the tracker has been started
+        /// </summary>
+        ///
+        /// <value>
+        /// true if started, false if not.
+        /// </value>
+        public Boolean Started { get; private set; }
+
+        /// <summary>
         /// Gets a value indicating whether the connection active (ie the ActorObject
         /// and ObjectId have been extracted).
         /// </summary>
@@ -454,7 +473,7 @@ namespace AssetPackage
             set;
         }
 
-#region SubTracker Properties
+        #region SubTracker Properties
 
         /// <summary>
         /// Access point for Accessible Traces generation
@@ -463,12 +482,12 @@ namespace AssetPackage
         {
             get
             {
-                if(accessibletracker == null)
+                if (accessibletracker == null)
                 {
                     accessibletracker = new AccessibleTracker();
                     accessibletracker.setTracker(this);
                 }
-                    
+
                 return accessibletracker;
             }
         }
@@ -560,11 +579,11 @@ namespace AssetPackage
             get { return GameObject; }
         }
 
-#endregion SubTracker Properties
+        #endregion SubTracker Properties
 
-#endregion Properties
+        #endregion Properties
 
-#region Methods
+        #region Methods
 
         /// <summary>
         /// Checks the health of the UCM Tracker.
@@ -590,7 +609,6 @@ namespace AssetPackage
             {
                 Log(Severity.Error, "Request Error: {0}-{1}", response.responseCode, response.responsMessage);
             }
-
             return response.ResultAllowed;
         }
 
@@ -609,14 +627,7 @@ namespace AssetPackage
                 }
             }
 #else
-            if (!Connected)
-            {
-                Log(Severity.Verbose, "Not connected yet, Can't flush.");
-            }
-            else
-            {
-                ProcessQueue();
-            }
+            ProcessQueue();
 #endif
         }
 
@@ -631,12 +642,6 @@ namespace AssetPackage
                 while (!exit)
                 {
                     Monitor.Wait(flushLockObject);
-
-                    if (!Connected)
-                    {
-                        Log(Severity.Verbose, "Not connected yet, Can't flush.");
-                    }
-                    else
                     {
                         ProcessQueue();
                     }
@@ -653,7 +658,7 @@ namespace AssetPackage
         {
             Flush();
         }
-        
+
 
         /// <summary>
         /// Login with a Username and Password.
@@ -749,89 +754,12 @@ namespace AssetPackage
         /// </summary>
         public void Start()
         {
+            this.Started = true;
+
             switch (settings.StorageType)
             {
                 case StorageTypes.net:
-                    Dictionary<string, string> headers = new Dictionary<string, string>();
-
-                    string body = String.Empty;
-
-                    //! The UserToken might get swapped for a better one during response
-                    //! processing. 
-                    if (!String.IsNullOrEmpty(settings.UserToken))
-                        headers["Authorization"] = String.Format("Bearer {0}", settings.UserToken);
-                    else if (!String.IsNullOrEmpty(settings.PlayerId))
-                    {
-                        headers.Add("Content-Type", "application/json");
-                        headers.Add("Accept", "application/json");
-
-                        body = "{\"anonymous\" : \"" + settings.PlayerId + "\"}";
-                    }
-
-                    RequestResponse response = IssueRequest(String.Format("proxy/gleaner/collector/start/{0}", settings.TrackingCode), "POST", headers, body);
-
-                    if (response.ResultAllowed)
-                    {
-                        Log(Severity.Information, "");
-
-                        // Extract AuthToken.
-                        //
-                        if (jsonAuthToken.IsMatch(response.body))
-                        {
-                            settings.UserToken = jsonAuthToken.Match(response.body).Groups[1].Value;
-                            Log(Severity.Information, "AuthToken= {0}", settings.UserToken);
-
-                            Connected = true;
-                        }
-
-                        // Extract PlayerId.
-                        //
-                        if (jsonPlayerId.IsMatch(response.body))
-                        {
-                            settings.PlayerId = jsonPlayerId.Match(response.body).Groups[1].Value;
-                            Log(Severity.Information, "PlayerId= {0}", settings.PlayerId);
-                        }
-
-                        // Extract Session number.
-                        //
-                        if (jsonSession.IsMatch(response.body))
-                        {
-                            Log(Severity.Information, "Session= {0}", jsonSession.Match(response.body).Groups[1].Value);
-                        }
-
-                        // Extract ObjectID.
-                        //
-                        if (jsonObjectId.IsMatch(response.body))
-                        {
-                            ObjectId = jsonObjectId.Match(response.body).Groups[1].Value;
-
-                            if (!ObjectId.EndsWith("/"))
-                            {
-                                ObjectId += "/";
-                            }
-
-                            Log(Severity.Information, "ObjectId= {0}", ObjectId);
-                        }
-
-                        // Extract Actor Json Object.
-                        //
-                        if (jsonActor.IsMatch(response.body))
-                        {
-                            ActorObject = JSONNode.Parse(jsonActor.Match(response.body).Groups[1].Value);
-
-                            Log(Severity.Information, "Actor= {0}", ActorObject);
-
-                            Active = true;
-                        }
-                    }
-                    else
-                    {
-                        Log(Severity.Error, "Request Error: {0}-{1}", response.responseCode, response.responsMessage);
-
-                        Active = false;
-                        Connected = false;
-                    }
-
+                    Connect();
                     break;
 
                 case StorageTypes.local:
@@ -854,6 +782,111 @@ namespace AssetPackage
                 flushThread.Start();
             }
 #endif
+        }
+
+        private void Connect()
+        {
+            Dictionary<string, string> headers = new Dictionary<string, string>();
+
+            string body = String.Empty;
+
+            //! The UserToken might get swapped for a better one during response
+            //! processing. 
+            if (!String.IsNullOrEmpty(settings.UserToken))
+                headers["Authorization"] = String.Format("Bearer {0}", settings.UserToken);
+            else if (!String.IsNullOrEmpty(settings.PlayerId))
+            {
+                headers.Add("Content-Type", "application/json");
+                headers.Add("Accept", "application/json");
+
+                body = "{\"anonymous\" : \"" + settings.PlayerId + "\"}";
+            }
+
+            RequestResponse response = IssueRequest(String.Format("proxy/gleaner/collector/start/{0}", settings.TrackingCode), "POST", headers, body);
+
+            if (response.ResultAllowed)
+            {
+                Log(Severity.Information, "");
+
+                // Extract AuthToken.
+                //
+                if (jsonAuthToken.IsMatch(response.body))
+                {
+                    settings.UserToken = jsonAuthToken.Match(response.body).Groups[1].Value;
+                    Log(Severity.Information, "AuthToken= {0}", settings.UserToken);
+
+                    Connected = true;
+                }
+
+                // Extract PlayerId.
+                //
+                if (jsonPlayerId.IsMatch(response.body))
+                {
+                    settings.PlayerId = jsonPlayerId.Match(response.body).Groups[1].Value;
+                    Log(Severity.Information, "PlayerId= {0}", settings.PlayerId);
+                }
+
+                // Extract Session number.
+                //
+                if (jsonSession.IsMatch(response.body))
+                {
+                    Log(Severity.Information, "Session= {0}", jsonSession.Match(response.body).Groups[1].Value);
+                }
+
+                // Extract ObjectID.
+                //
+                if (jsonObjectId.IsMatch(response.body))
+                {
+                    ObjectId = jsonObjectId.Match(response.body).Groups[1].Value;
+
+                    if (!ObjectId.EndsWith("/"))
+                    {
+                        ObjectId += "/";
+                    }
+
+                    Log(Severity.Information, "ObjectId= {0}", ObjectId);
+                }
+
+                // Extract Actor Json Object.
+                //
+                if (jsonActor.IsMatch(response.body))
+                {
+                    ActorObject = JSONNode.Parse(jsonActor.Match(response.body).Groups[1].Value);
+
+                    Log(Severity.Information, "Actor= {0}", ActorObject);
+
+                    Active = true;
+                }
+            }
+            else
+            {
+                Log(Severity.Error, "Request Error: {0}-{1}", response.responseCode, response.responsMessage);
+
+                Active = false;
+                Connected = false;
+            }
+        }
+
+        /// <summary>
+        /// Starts with a trackingCode (and with the already extracted UserToken).
+        /// </summary>
+        ///
+        /// <param name="trackingCode"> The tracking code. </param>
+        public void Stop()
+        {
+            this.Active = false;
+            this.Connected = false;
+            this.Started = false;
+            this.ActorObject = null;
+#if ASYNC
+            if (flushThread != null || flushThread.IsAlive)
+            {
+                exit = true;
+                flushThread.Abort();
+            }
+#endif
+            this.queue = new ConcurrentQueue<TrackerEvent>();
+            this.tracesPending = new List<string>();
         }
 
         /// <summary>
@@ -927,6 +960,9 @@ namespace AssetPackage
         /// <param name="value"> New value for the variable. </param>
         public void Trace(TrackerEvent trace)
         {
+            if (!this.Started)
+                throw new TrackerException("Tracker Has not been started");
+
             if (extensions.Count > 0)
             {
                 trace.Result.Extensions = new Dictionary<string, object>(extensions);
@@ -1034,121 +1070,54 @@ namespace AssetPackage
         /// </summary>
         private void ProcessQueue()
         {
-            if (queue.Count > 0)
+            if (!Started)
             {
-                List<string> sb = new List<string>();
+                Log(Severity.Warning, "Refusing to send traces without starting tracker (Active is False, should be True)");
+                return;
+            }
+            else if (!Active)
+            {
+                Connect();
+            }
 
-                UInt32 cnt = settings.BatchSize == 0 ? UInt32.MaxValue : settings.BatchSize;
-                String rawData = String.Empty;
+            if (queue.Count > 0 || tracesPending.Count > 0 || tracesUnlogged.Count > 0)
+            {
+                //Extract the traces from the queue and remove from the queue
+                TrackerEvent[] traces = CollectTraces();
 
-                while (queue.Count > 0 && cnt > 0)
+                //Check if it's connected now
+                if (Active)
                 {
-                    TrackerEvent item = queue.Dequeue();
-
-                    cnt -= 1;
-
-                    switch (settings.TraceFormat)
+                    if (SendUnloggedTraces())
                     {
-                        case TraceFormats.json:
-                            sb.Add(item.ToJson());
-                            break;
-                        case TraceFormats.xml:
-                            sb.Add(item.ToXml());
-                            break;
-                        case TraceFormats.xapi:
-                            sb.Add(item.ToXapi());
-                            break;
-                        default:
-                            sb.Add(item.ToCsv());
-                            break;
+                        string data = ProcessTraces(traces, settings.TraceFormat);
+
+                        if (!SendPendingTraces() || !((queue.Count > 0) && SendTraces(data)))
+                                tracesPending.Add(data);
                     }
-
-                    if (settings.BackupStorage)
-                        rawData += item.ToCsv() + "\r\n";
                 }
-
-                String data = String.Empty;
-
-                switch (settings.TraceFormat)
+                else
                 {
-                    case TraceFormats.csv:
-                        data = String.Join("\r\n", sb.ToArray()) + "\r\n";
-                        break;
-                    case TraceFormats.json:
-                        data = "[\r\n" + String.Join(",\r\n", sb.ToArray()) + "\r\n]";
-                        break;
-                    case TraceFormats.xml:
-                        data = "<TrackEvents>\r\n" + String.Join("\r\n", sb.ToArray()) + "\r\n</TrackEvent>";
-                        break;
-                    case TraceFormats.xapi:
-                        data = "[\r\n" + String.Join(",\r\n", sb.ToArray()) + "\r\n]";
-                        break;
-                    default:
-                        data = String.Join("\r\n", sb.ToArray());
-                        break;
+                    tracesUnlogged.AddRange(traces);
                 }
 
-                sb.Clear();
-
-                Log(Severity.Verbose, data);
-
-                switch (settings.StorageType)
-                {
-                    case StorageTypes.local:
-                        IDataStorage storage = getInterface<IDataStorage>();
-
-                        if (storage != null)
-                        {
-                            String previous = storage.Exists(settings.LogFile) ? storage.Load(settings.LogFile) : String.Empty;
-
-                            if (previous.Length > 0) {
-                                previous = previous.Replace("\r\n]", ",\r\n");
-                                data = data.Replace("[\r\n", "");
-                            }
-
-#warning TODO Add Append() to IDataStorage using File.AppendAllText().
-
-                            storage.Save(settings.LogFile, previous + data);
-                        }
-
-                        break;
-                    case StorageTypes.net:
-                        Dictionary<string, string> headers = new Dictionary<string, string>();
-
-                        headers.Add("Content-Type", "application/json");
-                        headers.Add("Authorization", String.Format("{0}", settings.UserToken));
-
-                        Log(Severity.Information, "\r\n" + data);
-
-                        RequestResponse response = IssueRequest("proxy/gleaner/collector/track",
-                                "POST", headers, data);
-
-                        if (response.ResultAllowed)
-                        {
-                            Log(Severity.Information, "Track= {0}", response.body);
-                        }
-                        else
-                        {
-                            Log(Severity.Error, "Request Error: {0}-{1}", response.responseCode, response.responsMessage);
-
-                            Active = false;
-                            Connected = false;
-                        }
-
-                        break;
-                }
-
+                // if backup requested, save a copy
                 if (settings.BackupStorage)
                 {
                     IDataStorage storage = getInterface<IDataStorage>();
 
-                    if (storage != null)
+                    if (storage != null && (queue.Count > 0))
                     {
-                        String previous = storage.Exists(settings.BackupFile) ? storage.Load(settings.BackupFile) : String.Empty;
-#warning TODO Add Append() to IDataStorage using File.AppendAllText().
-                        storage.Save(settings.BackupFile, previous + rawData);
+                        string rawData = ProcessTraces(traces, TraceFormats.csv);
+
+                        if (storage.Exists(settings.BackupFile))
+                            storage.Append(settings.BackupFile, rawData);
+                        else
+                            storage.Save(settings.BackupFile, rawData);
                     }
                 }
+
+                queue.Dequeue(traces.Length);
             }
             else
             {
@@ -1156,13 +1125,162 @@ namespace AssetPackage
             }
         }
 
-#region Extension Methods
+        TrackerEvent[] CollectTraces()
+        {
+            UInt32 cnt = settings.BatchSize == 0 ? UInt32.MaxValue : settings.BatchSize;
+            cnt = System.Math.Min((UInt32)queue.Count, cnt);
+            TrackerEvent[] traces = queue.Peek(cnt);
+
+            return traces;
+        }
+
+        string ProcessTraces(TrackerEvent[] traces, TraceFormats format)
+        {
+            String data = String.Empty;
+            TrackerEvent item;
+            List<string> sb = new List<string>();
+
+            for (int i = 0; i < traces.Length; i++)
+            {
+                item = traces[i];
+
+                switch (format)
+                {
+                    case TraceFormats.json:
+                        sb.Add(item.ToJson());
+                        break;
+                    case TraceFormats.xml:
+                        sb.Add(item.ToXml());
+                        break;
+                    case TraceFormats.xapi:
+                        sb.Add(item.ToXapi());
+                        break;
+                    default:
+                        sb.Add(item.ToCsv());
+                        break;
+                }
+            }
+
+            switch (format)
+            {
+                case TraceFormats.csv:
+                    data = String.Join("\r\n", sb.ToArray()) + "\r\n";
+                    break;
+                case TraceFormats.json:
+                    data = "[\r\n" + String.Join(",\r\n", sb.ToArray()) + "\r\n]";
+                    break;
+                case TraceFormats.xml:
+                    data = "<TrackEvents>\r\n" + String.Join("\r\n", sb.ToArray()) + "\r\n</TrackEvent>";
+                    break;
+                case TraceFormats.xapi:
+                    data = "[\r\n" + String.Join(",\r\n", sb.ToArray()) + "\r\n]";
+                    break;
+                default:
+                    data = String.Join("\r\n", sb.ToArray());
+                    break;
+            }
+
+            sb.Clear();
+
+            return data;
+        }
+
+        bool SendPendingTraces()
+        {
+            // Try to send old traces
+            while (tracesPending.Count > 0)
+            {
+                Log(Severity.Information, "Enqueued trace-blocks detected: {0}. Processing...", tracesPending.Count);
+                String data = tracesPending[0];
+                if (!SendTraces(data))
+                {
+                    Log(Severity.Information, "Error sending enqueued traces");
+                    // does not keep sending old traces, but continues processing new traces so that get added to tracesPending
+                    break;
+                }
+                else
+                {
+                    tracesPending.RemoveAt(0);
+                    Log(Severity.Information, "Sent enqueued traces OK");
+                }
+            }
+
+            return tracesPending.Count == 0;
+        }
+
+        bool SendUnloggedTraces()
+        {
+            if(tracesUnlogged.Count > 0 && this.ActorObject != null)
+            {
+                string data = ProcessTraces(tracesUnlogged.ToArray(), settings.TraceFormat);
+                bool sent = SendTraces(data);
+                tracesUnlogged.Clear();
+
+                if (!sent)
+                    tracesPending.Add(data);
+            }
+
+            return tracesUnlogged.Count == 0;
+        }
+
+        bool SendTraces(String data)
+        {
+            switch (settings.StorageType)
+            {
+                case StorageTypes.local:
+                    IDataStorage storage = getInterface<IDataStorage>();
+
+                    if (storage != null)
+                    {
+                        String previous = storage.Exists(settings.LogFile) ? storage.Load(settings.LogFile) : String.Empty;
+
+                        if (previous.Length > 0)
+                        {
+                            previous = previous.Replace("\r\n]", ",\r\n");
+                            data = data.Replace("[\r\n", "");
+                        }
+
+                        storage.Save(settings.LogFile, previous + data);
+                    }
+
+                    break;
+                case StorageTypes.net:                    
+                    Dictionary<string, string> headers = new Dictionary<string, string>();
+
+                    headers.Add("Content-Type", "application/json");
+                    headers.Add("Authorization", String.Format("{0}", settings.UserToken));
+
+                    Log(Severity.Information, "\r\n" + data);
+
+                    RequestResponse response = IssueRequest("proxy/gleaner/collector/track", "POST", headers, data);
+
+                    if (response.ResultAllowed)
+                    {
+                        Log(Severity.Information, "Track= {0}", response.body);
+                        Connected = true;
+                    }
+                    else
+                    {
+                        Log(Severity.Error, "Request Error: {0}-{1}", response.responseCode, response.responsMessage);
+
+                        Log(Severity.Warning, "Error flushing, connection disabled temporaly");
+
+                        Connected = false;
+                        return false;
+                    }
+
+                    break;
+            }
+            return true;
+        }
+
+        #region Extension Methods
 
         /// <summary>
-		/// Sets if the following trace has been a success, including this value to the extensions.
-		/// </summary>
-		/// <param name="success">If set to <c>true</c> means it has been a success.</param>
-		public void setSuccess(bool success)
+        /// Sets if the following trace has been a success, including this value to the extensions.
+        /// </summary>
+        /// <param name="success">If set to <c>true</c> means it has been a success.</param>
+        public void setSuccess(bool success)
         {
             setVar(Extension.Success.ToString().ToLower(), success);
         }
