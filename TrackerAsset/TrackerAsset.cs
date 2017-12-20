@@ -1092,7 +1092,7 @@ namespace AssetPackage
                     {
                         string data = ProcessTraces(traces, settings.TraceFormat);
 
-                        if (!SendPendingTraces() || !((queue.Count > 0) && SendTraces(data)))
+                        if ((!SendPendingTraces() || !(queue.Count > 0 && SendTraces(data))) && queue.Count > 0)
                                 tracesPending.Add(data);
                     }
                 }
