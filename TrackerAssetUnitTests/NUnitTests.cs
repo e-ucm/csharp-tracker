@@ -1011,4 +1011,46 @@ public class TrackerTest
         string[] backup = text.Split('\n');
         Assert.AreEqual(backup.Length, 4);
     }
+
+    [Test]
+    public void TestEmptyQueueFlush()
+    {
+        TrackerAsset.Instance.Stop();
+
+        bridge = new TesterBridge();
+        bridge.Connnected = false;
+
+        initTracker("csv", TrackerAsset.StorageTypes.net, bridge);
+        storage.Delete("netstorage");
+        storage.Delete(settings.BackupFile);
+
+        //Flush sin connected
+        TrackerAsset.Instance.Flush();
+        Assert.AreEqual(storage.Load("netstorage"), string.Empty);
+
+        //Flush porque si
+        TrackerAsset.Instance.Flush();
+        Assert.AreEqual(storage.Load("netstorage"), string.Empty);
+
+        //Flush tras conectar
+        bridge.Connnected = true;
+        TrackerAsset.Instance.Flush();
+        string net = storage.Load("netstorage");
+        Assert.AreEqual(storage.Load("netstorage"), string.Empty);
+
+        bridge.Connnected = false;
+        enqueueTrace01();
+        TrackerAsset.Instance.Flush();
+        TrackerAsset.Instance.Flush();
+
+        bridge.Connnected = true;
+        TrackerAsset.Instance.Flush();
+        TrackerAsset.Instance.Flush();
+
+        string[] text = storage.Load("netstorage").Split('\n');
+        Assert.AreEqual(text.Length, 2);
+
+        string[] backup = storage.Load(settings.BackupFile).Split('\n');
+        Assert.AreEqual(backup.Length, 2);
+    }
 }
