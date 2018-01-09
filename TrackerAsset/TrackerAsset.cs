@@ -621,10 +621,13 @@ namespace AssetPackage
             // If its waiting for flush, lets wake it up
             if (flushThread.IsAlive)
             {
-                lock (flushLockObject)
-                {
-                    Monitor.Pulse(flushLockObject);
-                }
+                if (!flushing)
+                    lock (flushLockObject)
+                    {
+                        Monitor.Pulse(flushLockObject);
+                    }
+                else
+                    this.redo_flush = true;
             }
 #else
             ProcessQueue();
@@ -632,6 +635,8 @@ namespace AssetPackage
         }
 
 #if ASYNC
+        bool redo_flush = false;
+        bool flushing = false;
         /// <summary>
         /// Real flushes (to be called from the thread)
         /// </summary>
@@ -643,7 +648,14 @@ namespace AssetPackage
                 {
                     Monitor.Wait(flushLockObject);
                     {
+                        flushing = true;
                         ProcessQueue();
+                        if (redo_flush)
+                        {
+                            redo_flush = false;
+                            ProcessQueue();
+                        }
+                        flushing = false;
                     }
                 }
             }
