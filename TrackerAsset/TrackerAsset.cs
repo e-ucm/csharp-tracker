@@ -2180,7 +2180,15 @@ namespace AssetPackage
                         {
                             if (extension.Value != null)
                             {
-                                if (extension.Value.GetType() == typeof(float))
+                                if (extension.Value.GetType() == typeof(int))
+                                {
+                                    extensions.Add(extension.Key, new JSONData((int)extension.Value));
+                                }
+                                else if (extension.Value.GetType() == typeof(bool))
+                                {
+                                    extensions.Add(extension.Key, new JSONData((bool)extension.Value));
+                                }
+                                else if (extension.Value.GetType() == typeof(float))
                                 {
                                     extensions.Add(extension.Key, new JSONData((float) extension.Value));
                                 }
@@ -2251,7 +2259,15 @@ namespace AssetPackage
                                 if (ExtensionIDs.TryGetValue(key, out tmpkey))
                                     key = tmpkey;
 
-                                if (extension.Value.GetType() == typeof(float))
+                                if (extension.Value.GetType() == typeof(int))
+                                {
+                                    extensions.Add(key, new JSONData((int)extension.Value));
+                                }
+                                else if (extension.Value.GetType() == typeof(bool))
+                                {
+                                    extensions.Add(key, new JSONData((bool)extension.Value));
+                                }
+                                else if (extension.Value.GetType() == typeof(float))
                                 {
                                     extensions.Add(key, new JSONData((float)extension.Value));
                                 }
