@@ -23,11 +23,10 @@ namespace TrackerAssetUnitTests
     using System.Linq;
     using System.Text;
 
-    // 
     using AssetPackage;
     using System.Net;
 
-    public class TesterBridge : IBridge, ILog, IDataStorage, IWebServiceRequest
+    public class TesterBridge : IBridge, ILog, IDataStorage, IAppend, IWebServiceRequest
     {
         readonly String StorageDir = String.Format(@".{0}TestStorage", Path.DirectorySeparatorChar);
         /// <summary>
@@ -75,14 +74,6 @@ namespace TrackerAssetUnitTests
                 files.Add(fileId, fileData);
         }
 
-        public void Append(string fileId, string fileData)
-        {
-            if (Exists(fileId))
-                files[fileId] = files[fileId] + fileData;
-            else
-                files.Add(fileId, fileData);
-        }
-
         public string Load(string fileId)
         {
             string content = "";
@@ -101,6 +92,18 @@ namespace TrackerAssetUnitTests
             return true;
         }
         #endregion
+
+        #region IAppend Members
+
+        public void Append(string fileId, string fileData)
+        {
+            if (Exists(fileId))
+                files[fileId] = files[fileId] + fileData;
+            else
+                files.Add(fileId, fileData);
+        }
+
+        #endregion IAppend Members
 
         #region ILog Members
 

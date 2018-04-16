@@ -48,6 +48,7 @@ public class TrackerTest
     };
 
     IDataStorage storage;
+    IAppend append_storage;
     ILog log;
     TesterBridge bridge;
 
@@ -76,7 +77,8 @@ public class TrackerTest
 
         TrackerAsset.Instance.Bridge = this.bridge;
 
-        storage = (IDataStorage)TrackerAsset.Instance.Bridge;
+        storage = getInterface<IDataStorage>();
+        append_storage = getInterface<IAppend>();
         log = (ILog)TrackerAsset.Instance.Bridge;
         TrackerAsset.Instance.StrictMode = true;
         TrackerAsset.Instance.Clear();
@@ -857,7 +859,8 @@ public class TrackerTest
         Assert.AreEqual(tracejson["object"]["definition"]["type"].Value, "https://w3id.org/xapi/seriousgames/activity-types/game-object");
         Assert.AreEqual(tracejson["verb"]["id"].Value, "https://w3id.org/xapi/seriousgames/verbs/accessed");
 
-        storage.Append("netstorage", ",");
+        append("netstorage", ",");
+
         enqueueTrace02();
         enqueueTrace03();
         TrackerAsset.Instance.Flush();
@@ -917,7 +920,7 @@ public class TrackerTest
         Assert.AreEqual(file.Count, 1);
 
         bridge.Connnected = true;
-        storage.Append("netstorage", ",");
+        append("netstorage", ",");
         TrackerAsset.Instance.Flush();
 
         text = storage.Load("netstorage");
@@ -989,7 +992,7 @@ public class TrackerTest
         bridge.Connnected = true;
         enqueueTrace02();
         enqueueTrace03();
-        storage.Append("netstorage", ",");
+        append("netstorage", ",");
         TrackerAsset.Instance.Flush();
 
         string text = storage.Load("netstorage");
@@ -1052,5 +1055,27 @@ public class TrackerTest
 
         string[] backup = storage.Load(settings.BackupFile).Split('\n');
         Assert.AreEqual(backup.Length, 2);
+    }
+
+    private void append(string file, string text)
+    {
+        if (append_storage != null)
+        {
+            append_storage.Append(file, text);
+        }
+        else
+        {
+            storage.Save(storage.Load(file), text);
+        }
+    }
+
+    private T getInterface<T>()
+    {
+        if (TrackerAsset.Instance.Bridge != null && TrackerAsset.Instance.Bridge is T)
+        {
+            return (T)(TrackerAsset.Instance.Bridge);
+        }
+
+        return default(T);
     }
 }

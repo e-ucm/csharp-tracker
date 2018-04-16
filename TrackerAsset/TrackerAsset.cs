@@ -1117,15 +1117,25 @@ namespace AssetPackage
                 if (settings.BackupStorage)
                 {
                     IDataStorage storage = getInterface<IDataStorage>();
+                    IAppend append_storage = getInterface<IAppend>();
 
-                    if (storage != null && (queue.Count > 0))
+                    if(queue.Count > 0)
                     {
                         string rawData = ProcessTraces(traces, TraceFormats.csv);
 
-                        if (storage.Exists(settings.BackupFile))
-                            storage.Append(settings.BackupFile, rawData);
-                        else
-                            storage.Save(settings.BackupFile, rawData);
+                        if (append_storage != null)
+                        {
+                            append_storage.Append(settings.BackupFile, rawData);
+                        }
+                        else if(storage != null)
+                        {
+                            String previous = storage.Exists(settings.BackupFile) ? storage.Load(settings.BackupFile) : String.Empty;
+                            
+                            if (storage.Exists(settings.BackupFile))
+                                storage.Save(settings.BackupFile, previous + rawData);
+                            else
+                                storage.Save(settings.BackupFile, rawData);
+                        }
                     }
                 }
 
@@ -1241,6 +1251,7 @@ namespace AssetPackage
             {
                 case StorageTypes.local:
                     IDataStorage storage = getInterface<IDataStorage>();
+                    IAppend append_storage = getInterface<IAppend>();
 
                     if (storage != null)
                     {
