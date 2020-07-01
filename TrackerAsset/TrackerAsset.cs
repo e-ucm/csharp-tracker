@@ -242,6 +242,10 @@ namespace AssetPackage
                 settings.Port = 443;
                 settings.BasePath = "/api/";
 
+                settings.LoginEndpoint = "login";
+                settings.StartEndpoint = "proxy/gleaner/collector/start/{0}";
+                settings.TrackEndpoint = "proxy/gleaner/collector/track";
+
                 settings.UserToken = "";
                 settings.TrackingCode = "";
                 settings.StorageType = StorageTypes.local;
@@ -617,6 +621,10 @@ namespace AssetPackage
         /// </summary>
         public void Flush()
         {
+            if (!Started)
+            {
+                return;
+            }
 #if ASYNC
             // If its waiting for flush, lets wake it up
             if (flushThread.IsAlive)
@@ -692,7 +700,7 @@ namespace AssetPackage
             headers.Add("Content-Type", "application/json");
             headers.Add("Accept", "application/json");
 
-            RequestResponse response = IssueRequest("login", "POST", headers,
+            RequestResponse response = IssueRequest(settings.LoginEndpoint, "POST", headers,
                 String.Format("{{\r\n \"username\": \"{0}\",\r\n \"password\": \"{1}\"\r\n}}",
                 username, password));
 
@@ -766,34 +774,43 @@ namespace AssetPackage
         /// </summary>
         public void Start()
         {
-            this.Started = true;
-
-            switch (settings.StorageType)
+            try
             {
-                case StorageTypes.net:
-                    Connect();
-                    break;
+                switch (settings.StorageType)
+                {
+                    case StorageTypes.net:
+                        Connect();
+                        break;
 
-                case StorageTypes.local:
-                    {
-                        // Allow LocalStorage if a Bridge is implementing IDataStorage.
-                        // 
-                        IDataStorage tmp = getInterface<IDataStorage>();
+                    case StorageTypes.local:
+                        {
+                            // Allow LocalStorage if a Bridge is implementing IDataStorage.
+                            // 
+                            IDataStorage tmp = getInterface<IDataStorage>();
 
-                        Connected = tmp != null;
-                        Active = tmp != null;
-                    }
-                    break;
-            }
+                            Connected = tmp != null;
+                            Active = tmp != null;
+                        }
+                        break;
+                }
 #if ASYNC
-            if (flushThread == null || !flushThread.IsAlive)
-            {
-                exit = false;
-                flushThread = new Thread(new ThreadStart(DoFlush));
-                flushThread.Name = System.DateTime.Now.ToString();
-                flushThread.Start();
-            }
+                if (flushThread == null || !flushThread.IsAlive)
+                {
+                    exit = false;
+                    flushThread = new Thread(new ThreadStart(DoFlush));
+                    flushThread.Name = System.DateTime.Now.ToString();
+                    flushThread.Start();
+                }
 #endif
+                Started = true;
+            }
+            catch(Exception ex)
+            {
+                Log(Severity.Error, "Unable to connect: " + ex.Message + " - " + ex.StackTrace);
+            }
+            
+
+
         }
 
         private void Connect()
@@ -813,8 +830,7 @@ namespace AssetPackage
 
                 body = "{\"anonymous\" : \"" + settings.PlayerId + "\"}";
             }
-
-            RequestResponse response = IssueRequest(String.Format("proxy/gleaner/collector/start/{0}", settings.TrackingCode), "POST", headers, body);
+            RequestResponse response = IssueRequest(String.Format(settings.StartEndpoint, settings.TrackingCode), "POST", headers, body);
 
             if (response.ResultAllowed)
             {
@@ -1255,8 +1271,9 @@ namespace AssetPackage
 
                     if (append_storage != null)
                     {
-                        append_storage.Append(settings.BackupFile, data);
-                    }else if (storage != null)
+                        append_storage.Append(settings.LogFile, data);
+                    }
+                    else if (storage != null)
                     {
                         String previous = storage.Exists(settings.LogFile) ? storage.Load(settings.LogFile) : String.Empty;
 
@@ -1274,11 +1291,19 @@ namespace AssetPackage
                     Dictionary<string, string> headers = new Dictionary<string, string>();
 
                     headers.Add("Content-Type", "application/json");
-                    headers.Add("Authorization", String.Format("{0}", settings.UserToken));
+                    if (!string.IsNullOrEmpty(settings.UserToken))
+                    {
+                        string authformat = "{0}";
+                        if (settings.UseBearerOnTrackEndpoint)
+                        {
+                            authformat = "Bearer {0}";
+                        }
+                        headers.Add("Authorization", String.Format(authformat, settings.UserToken));
+                    }
 
                     Log(Severity.Information, "\r\n" + data);
 
-                    RequestResponse response = IssueRequest("proxy/gleaner/collector/track", "POST", headers, data);
+                    RequestResponse response = IssueRequest(String.Format(settings.TrackEndpoint, settings.TrackingCode), "POST", headers, data);
 
                     if (response.ResultAllowed)
                     {
