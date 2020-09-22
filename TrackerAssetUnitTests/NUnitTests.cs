@@ -194,7 +194,7 @@ public class TrackerTest
         Assert.Throws(typeof(TraceException), delegate { TrackerAsset.Instance.Trace("1", "2", "3", "4"); });
         Assert.Throws(typeof(TraceException), delegate { TrackerAsset.Instance.Trace(null, null); });
         Assert.Throws(typeof(TraceException), delegate { TrackerAsset.Instance.Trace("1,2,3,4"); });
-        Assert.Throws(typeof(TargetXApiException), delegate { TrackerAsset.Instance.Trace("1,2,3"); TrackerAsset.Instance.RequestFlush(() => { }); });
+        Assert.Throws(typeof(TargetXApiException), delegate { TrackerAsset.Instance.Trace("1,2,3"); TrackerAsset.Instance.Flush(); });
 
         initTracker("csv");
         TrackerAsset.Instance.StrictMode = false;

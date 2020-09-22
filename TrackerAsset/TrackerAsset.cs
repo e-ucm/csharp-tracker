@@ -16,8 +16,8 @@
  * limitations under the License.
  */
 
-#define ASYNC
-//#undef ASYNC
+//#define ASYNC
+#undef ASYNC
 
 namespace AssetPackage
 {
@@ -638,15 +638,7 @@ namespace AssetPackage
         /// </summary>
         public void Flush()
         {
-            if (!Started)
-            {
-                return;
-            }
-            ProcessQueue(
-#if ASYNC
-                null
-#endif
-                );
+            Flush(null);
         }
 
         /// <summary>
@@ -710,17 +702,9 @@ namespace AssetPackage
         /// Flushes the queue.
         /// </summary>
         [Obsolete("Use Flush instead.")]
-        public void RequestFlush(
-#if ASYNC
-                Action callback
-#endif
-            )
+        public void RequestFlush(Action done)
         {
-            Flush(
-#if ASYNC
-                callback
-#endif
-                );
+            Flush(done);
         }
 
 
@@ -1057,17 +1041,9 @@ namespace AssetPackage
         /// <summary>
         /// Exit the tracker before closing to guarantee the thread closing.
         /// </summary>
-        public void Exit(
-#if ASYNC
-            Action done
-#endif
-            )
+        public void Exit(Action done)
         {
-            Flush(
-#if ASYNC
-                done
-#endif
-            );
+            Flush(done);
         }
 
         /// <summary>
