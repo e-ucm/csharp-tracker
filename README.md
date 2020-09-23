@@ -9,18 +9,22 @@ After a game is developed, a common need is to know how the players play, what i
 ## Installation
 1. Clone the repository with `git clone --recursive -j8 git://github.com/e-ucm/dotnet-tracker.git`
 1. Include projects into your solution or open the existing solution found in the root of the repository:
-  1. If you already have the AssetManager project, ignore it, if not, include it into your solution.
-  1. Include TrackerAsset and make sure you reference AssetManager from TrackerAsset
-  1. Reference AssetManager and TrackerAsset into your main project.
+   1. If you already have the AssetManager project, ignore it, if not, include it into your solution.
+   1. Include TrackerAsset and make sure you reference AssetManager from TrackerAsset
+   1. Reference AssetManager and TrackerAsset into your main project.
 1. Create a new TrackerAsset instance and start configuring it by creating a new instance of `TrackerAssetSettings()`:
-  1. **Host**: If storage type is set to `TrackerAsset.StorageTypes.net`, this should have the host for the analytics server 
-  1. **Secure**: If the server uses a secure connection set it to true.
-  1. **Port**: This should have the port of the analytics server. By default, port 80 is used.
-  1. **BasePath**: Lets you set the route for the api path of the analytics server. Usually set it to "/api".
-  1. **StorageType**: can be `TrackerAsset.StorageTypes.net`, to send traces to a server, o `TrackerAsset.StorageTypes.local`, to store them locally.
-  1. **TraceFormat**: the format of the traces. Can be `TrackerAsset.TraceFormats.xapi` (Recommended), `TrackerAsset.TraceFormats.csv` or `TrackerAsset.TraceFormats.json` (Deprecated).
-  1. **TrackingCode**: If storage type is set to `TrackerAsset.StorageTypes.net`, this is the [tracking code identifying the game](https://github.com/e-ucm/rage-analytics/wiki/Tracking-code)
-  1. **BackupStorage**: If true, creates a traces backup file into the filesystem, formated in CSV
+   1. **Host**: If storage type is set to `TrackerAsset.StorageTypes.net`, this should have the host for the analytics server 
+   1. **Secure**: If the server uses a secure connection set it to true.
+   1. **Port**: This should have the port of the analytics server. By default, port 80 is used.
+   1. **BasePath**: Lets you set the route for the api path of the analytics server. Usually set it to "/api".
+   1. **StorageType**: can be `TrackerAsset.StorageTypes.net`, to send traces to a server, o `TrackerAsset.StorageTypes.local`, to store them locally.
+   1. **TraceFormat**: the format of the traces. Can be `TrackerAsset.TraceFormats.xapi` (Recommended), `TrackerAsset.TraceFormats.csv` or `TrackerAsset.TraceFormats.json` (Deprecated). If you want to use a format other than xAPI, you should set `TrackerAsset.Instance.StrictMode = false`.
+   1. **TrackingCode**: If storage type is set to `TrackerAsset.StorageTypes.net`, this is the [tracking code identifying the game](https://github.com/e-ucm/rage-analytics/wiki/Tracking-code)
+   1. **BackupStorage**: If true, creates a traces backup file into the filesystem, formated in CSV
+   1. **LoginEndpoint**: Endpoint for login. If not specified, `"login"`.
+   1. **StartEndpoint**: Endpoint for start. If not specified, `"proxy/gleaner/collector/start/{0}"`.
+   1. **TrackEndpoint**: Endpoint for track. If not specified, `"proxy/gleaner/collector/track"`.
+   1. **UseBearerOnTrackEndpoint**: If true, it will use Bearer on track endpoint auth.
 1. Set up a bridge for creating the connections with the server.
 1. Send traces
 
@@ -30,7 +34,11 @@ After a game is developed, a common need is to know how the players play, what i
 
 Using the tracker is a really simple proccess. For expanding the Installation guide here you can found some examples of how to setup and use the tracker.
 
-### Tracker access and instatiation
+### Synchronous or asynchronous tracking
+
+C# tracker can work both synchronously and asynchronously, as desired. This behavior can be configured [here](https://github.com/e-ucm/csharp-tracker/blob/master/TrackerAsset/TrackerAsset.cs#L19).
+
+### Tracker access and instatiation (synchronous)
 
 First, you need to create and manage an instance. You have two ways for doing this.
 1. TrackerAsset has an singleton instance if you want to use it.
@@ -71,7 +79,11 @@ TrackerAssetSettings tracker_settings = new TrackerAssetSettings()
   Secure = domain.Split('/')[0] == "https:",
   StorageType = TrackerAsset.StorageTypes.net,
   TraceFormat = TrackerAsset.TraceFormats.xapi,
-  BackupStorage = true
+  BackupStorage = true,
+  LoginEndpoint = trackerConfig.getLoginEndpoint() ?? "login",
+  StartEndpoint = trackerConfig.getStartEndpoint() ?? "proxy/gleaner/collector/start/{0}",
+  TrackEndpoint = trackerConfig.getStartEndpoint() ?? "proxy/gleaner/collector/track",
+  UseBearerOnTrackEndpoint = trackerConfig.getUseBearerOnTrackEndpoint()
 };
 
 TrackerAsset.Instance.Settings = tracker_settings
@@ -88,7 +100,7 @@ Once you have a Bridge, you just need to add it to the Tracker.
 TrackerAsset.Instance.Bridge = new Bridge();
 ```
 
-### Tracker Login and Start
+### Tracker Login and Start (synchronous)
 
 Tracker Login and Start are the only two methods that are used syncronously to the server, so make sure don't do it while something important happens into the game, because probably is going to freeze, for a really small amount of time, but is going to freeze.
 
@@ -105,7 +117,7 @@ String username = "student", password = "123456";
 TrackerAsset.Instance.Login(username, password);
 ```
 
-### Tracker Start
+#### Tracker Start
 
 For requesting the actor to the server you have to start the tracker. This way actor is appended to the traces when generated. For starting the tracker you just have to call the `TrackerAsset.Instance.Start()` function.
 
@@ -115,6 +127,33 @@ For requesting the actor to the server you have to start the tracker. This way a
 TrackerAsset.Instance.Start();
 ```
 
+### Tracker Login and Start (asynchronous)
+
+To use the tracker asynchronously, you should use the methods LoginAsync and StartAsync.
+
+#### Tracker LoginAsync
+
+Tracker LoginAsync is not really necesary. If you are a developer, and you're logged into the Analytics server as a developer, you're going to receive traces either the player has logged or not. If you're a teacher, and you want to see traces in your activities, you can configure the activity to allow anonymous users.
+
+If you are a teacher and you want to use logged students, you have to add the students to the class and then ask them for credentials into your game and log them into the system using `TrackerAsset.Instance.LoginAsync(String username, String password)` function.
+
+```c#
+//Log in the student BEFORE starting the tracker
+String username = "student", password = "123456";
+
+TrackerAsset.Instance.LoginAsync(username, password);
+```
+
+#### Tracker StartAsync
+
+For requesting the actor to the server you have to start the tracker. This way actor is appended to the traces when generated. For starting the tracker you just have to call the `TrackerAsset.Instance.StartAsync()` function.
+
+```c#
+//Start the tracker before sending traces.
+
+TrackerAsset.Instance.StartAsync();
+```
+
 ## Detailed Feature List
 1. Different storage types: 
 	1. `net`: sends data to a trace-server, such as the [rage-analytics Backend](https://github.com/e-ucm/rage-analytics-backend). If set, a hostname should be specified via the `host` property.
@@ -122,7 +161,7 @@ TrackerAsset.Instance.Start();
 1. Different trace formats:
 	1. `csv`: allow processing in MS Excel or other spreadsheets. Also supported by many analytics environments.
 	2. `json`: especially intended for programmatic analysis, for instance using python or java/javascript or
-	3. `xapi`: an upcoming standard for student activity. Note that, if the tracker's storage type is `net` it is required to use the `xapi` trace format since the [rage-analytics Backend](https://github.com/e-ucm/rage-analytics-backend) expects xAPI Statements. The [xAPI tracking model](https://github.com/e-ucm/xapi-seriousgames) that the backend expects is composed of [Completables](https://github.com/e-ucm/xapi-seriousgames/blob/master/README.md#1341-completable), [Reachables](https://github.com/e-ucm/xapi-seriousgames/blob/master/README.md#1341-reachable), [Variables](https://github.com/e-ucm/xapi-seriousgames/blob/master/README.md#1342-variables) and [Alternatives](https://github.com/e-ucm/xapi-seriousgames/blob/master/README.md#1343-alternatives). 
+	3. `xapi`: an upcoming standard for student activity. Note that, if the tracker's storage type is `net` it is required to use the `xapi` trace format since the [rage-analytics Backend](https://github.com/e-ucm/rage-analytics-backend) expects xAPI Statements. The [xAPI tracking model](https://github.com/e-ucm/xapi-seriousgames) that the backend expects is composed of [Completables](https://github.com/e-ucm/xapi-seriousgames/blob/master/README.md#1341-completable), [Reachables](https://github.com/e-ucm/xapi-seriousgames/blob/master/README.md#1341-reachable), [Variables](https://github.com/e-ucm/xapi-seriousgames/blob/master/README.md#1342-variables) and [Alternatives](https://github.com/e-ucm/xapi-seriousgames/blob/master/README.md#1343-alternatives). Notice that if you want to use a format other than xAPI, you should set `TrackerAsset.Instance.StrictMode = false`.
 1. Tracker messages can be displayed in the Unity console by setting the `Debug` property
 1. Uses Unity's in-built facilities to handle connections, files and timing.
  
