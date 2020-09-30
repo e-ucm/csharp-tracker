@@ -38,6 +38,15 @@ Using the tracker is a really simple proccess. For expanding the Installation gu
 
 C# tracker can work both synchronously and asynchronously, as desired. This behavior can be configured [here](https://github.com/e-ucm/csharp-tracker/blob/master/TrackerAsset/TrackerAsset.cs#L19).
 
+To use a tracking mode, you only need to enable its corresponding precompiler tag (SYNC or ASYNC), commenting the other one that you do not want to use:
+
+```c#
+#define ASYNC
+//#undef ASYNC
+```
+
+In this case, the tracker is in ASYNC mode.
+
 ### Tracker access and instatiation (synchronous)
 
 First, you need to create and manage an instance. You have two ways for doing this.
@@ -106,7 +115,7 @@ Tracker Login and Start are the only two methods that are used syncronously to t
 
 #### Tracker Login
 
-Tracker Login is not really necesary. If you are a developer, and you're logged into the Analytics server as a developer, you're going to receive traces either the player has logged or not. If you're a teacher, and you want to see traces in your activities, you can configure the activity to allow anonymous users.
+Tracker Login is not really necessary. If you are a developer, and you're logged into the Analytics server as a developer, you're going to receive traces either the player has logged or not. If you're a teacher, and you want to see traces in your activities, you can configure the activity to allow anonymous users.
 
 If you are a teacher and you want to use logged students, you have to add the students to the class and then ask them for credentials into your game and log them into the system using `TrackerAsset.Instance.Login(String username, String password)` function.
 
@@ -129,19 +138,28 @@ TrackerAsset.Instance.Start();
 
 ### Tracker Login and Start (asynchronous)
 
-To use the tracker asynchronously, you should use the methods LoginAsync and StartAsync.
+To use the tracker asynchronously, you should first enable the ASYNC precompiler tag, as described above. This way, traces will be sent asynchronously.
+
+
+Start and Login have been maintained both sync and async (this last one will only work if tracker has ASYNC tag enabled). You may also use the specific methods LoginAsync and StartAsync. Depending on your code you might want to use one or the other. 
 
 #### Tracker LoginAsync
 
-Tracker LoginAsync is not really necesary. If you are a developer, and you're logged into the Analytics server as a developer, you're going to receive traces either the player has logged or not. If you're a teacher, and you want to see traces in your activities, you can configure the activity to allow anonymous users.
+Tracker LoginAsync is not really necessary. If you are a developer, and you're logged into the Analytics server as a developer, you're going to receive traces either the player has logged or not. If you're a teacher, and you want to see traces in your activities, you can configure the activity to allow anonymous users.
 
-If you are a teacher and you want to use logged students, you have to add the students to the class and then ask them for credentials into your game and log them into the system using `TrackerAsset.Instance.LoginAsync(String username, String password)` function.
+If you are a teacher and you want to use logged students, you have to add the students to the class and then ask them for credentials into your game and log them into the system using `TrackerAsset.Instance.LoginAsync(String username, String password, Action<Boolean> callback)` function. The LoginAsync method uses an Action as third parameter that will be used to notify when the login attempt has finished and whether it was a success or not.
 
 ```c#
 //Log in the student BEFORE starting the tracker
 String username = "student", password = "123456";
 
-TrackerAsset.Instance.LoginAsync(username, password);
+TrackerAsset.Instance.LoginAsync(username, password, logged => {
+    if(logged){
+        // Code for when the login is successful
+    } else {
+        // Code for login failed
+    }
+});
 ```
 
 #### Tracker StartAsync
@@ -151,7 +169,9 @@ For requesting the actor to the server you have to start the tracker. This way a
 ```c#
 //Start the tracker before sending traces.
 
-TrackerAsset.Instance.StartAsync();
+TrackerAsset.Instance.StartAsync(() => {
+    // Code to be executed after start
+});
 ```
 
 ## Detailed Feature List
