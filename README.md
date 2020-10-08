@@ -2,25 +2,25 @@
 
 ![logo_rage_top-of-the-web](https://cloud.githubusercontent.com/assets/5657407/16461800/9ae669fc-3e2e-11e6-97f4-4e93f2c96dea.jpg)
 
-This code belongs to [RAGE project](http://rageproject.eu/) and sends analytics information to a server; or, if the server is currently unavailable, stores them locally until it becomes available again.
+This code belongs to the [RAGE project](http://rageproject.eu/) and sends analytics information to a server; or, if the server is currently unavailable, stores them locally until it becomes available again.
 
-After a game is developed, a common need is to know how the players play, what interactions they follow within the game and how much time they spend in a game session; collectively, these are known as game analytics. Analytics are used to locate gameplay bottlenecks and assess  game effectiveness and learning outcomes, among other tasks.
+After a game is developed, a common need is to know how the players play, what interactions they follow within the game and how much time they spend in a game session; collectively, these are known as game analytics. Analytics are used to locate gameplay bottlenecks and assess game effectiveness and learning outcomes, among other tasks.
 
 ## Installation
 1. Clone the repository with `git clone --recursive -j8 git://github.com/e-ucm/dotnet-tracker.git`
 1. Include projects into your solution or open the existing solution found in the root of the repository:
-   1. If you already have the AssetManager project, ignore it, if not, include it into your solution.
-   1. Include TrackerAsset and make sure you reference AssetManager from TrackerAsset
-   1. Reference AssetManager and TrackerAsset into your main project.
-1. Create a new TrackerAsset instance and start configuring it by creating a new instance of `TrackerAssetSettings()`:
-   1. **Host**: If storage type is set to `TrackerAsset.StorageTypes.net`, this should have the host for the analytics server 
-   1. **Secure**: If the server uses a secure connection set it to true.
-   1. **Port**: This should have the port of the analytics server. By default, port 80 is used.
-   1. **BasePath**: Lets you set the route for the api path of the analytics server. Usually set it to "/api".
+   1. If you already have the `AssetManager` project, ignore it, if not, include it into your solution.
+   1. Include `TrackerAsset` and make sure you reference `AssetManager` from `TrackerAsset`
+   1. Reference `AssetManager` and `TrackerAsset` into your main project.
+1. Create a new `TrackerAsset` instance and start configuring it by creating a new instance of `TrackerAssetSettings()`:
+   1. **Host**: If storage type is set to `TrackerAsset.StorageTypes.net`, this should contain the hostname or IP for the analytics server 
+   1. **Secure**: If the server uses a secure connection (HTTPS), set it to `true`.
+   1. **Port**: This should have the port of the analytics server. By default, port `80` (HTTP) is used.
+   1. **BasePath**: Lets you set the route for the api path of the analytics server. Usually set to `/api`.
    1. **StorageType**: can be `TrackerAsset.StorageTypes.net`, to send traces to a server, o `TrackerAsset.StorageTypes.local`, to store them locally.
-   1. **TraceFormat**: the format of the traces. Can be `TrackerAsset.TraceFormats.xapi` (Recommended), `TrackerAsset.TraceFormats.csv` or `TrackerAsset.TraceFormats.json` (Deprecated). If you want to use a format other than xAPI, you should set `TrackerAsset.Instance.StrictMode = false`.
+   1. **TraceFormat**: the format of the traces. Can be `TrackerAsset.TraceFormats.xapi` (recommended), `TrackerAsset.TraceFormats.csv` or `TrackerAsset.TraceFormats.json` (Deprecated). If you want to use a format other than xAPI, you should set `TrackerAsset.Instance.StrictMode = false`.
    1. **TrackingCode**: If storage type is set to `TrackerAsset.StorageTypes.net`, this is the [tracking code identifying the game](https://github.com/e-ucm/rage-analytics/wiki/Tracking-code)
-   1. **BackupStorage**: If true, creates a traces backup file into the filesystem, formated in CSV
+   1. **BackupStorage**: If true, creates a traces backup file in the filesystem where the game is being run, formated in CSV
    1. **LoginEndpoint**: Endpoint for login. If not specified, `"login"`.
    1. **StartEndpoint**: Endpoint for start. If not specified, `"proxy/gleaner/collector/start/{0}"`.
    1. **TrackEndpoint**: Endpoint for track. If not specified, `"proxy/gleaner/collector/track"`.
@@ -28,30 +28,30 @@ After a game is developed, a common need is to know how the players play, what i
 1. Set up a bridge for creating the connections with the server.
 1. Send traces
 
-<b>Note</b>: The traces file are saved in the path specified by the Bridge. 
+<b>Note</b>: The traces file are saved in the path specified by the `Bridge.`
 
 ## Usage Example
 
-Using the tracker is a really simple proccess. For expanding the Installation guide here you can found some examples of how to setup and use the tracker.
+Using the tracker is a really simple proccess. Below you will find some examples of how to setup and use the tracker.
 
 ### Synchronous or asynchronous tracking
 
-C# tracker can work both synchronously and asynchronously, as desired. This behavior can be configured [here](https://github.com/e-ucm/csharp-tracker/blob/master/TrackerAsset/TrackerAsset.cs#L19).
+The C# tracker can work both synchronously (blocking until each request finishes; this may make your game stutter) and asynchronously (sending tracking data in background). This behavior can be configured [here](https://github.com/e-ucm/csharp-tracker/blob/master/TrackerAsset/TrackerAsset.cs#L19).
 
-To use a tracking mode, you only need to enable its corresponding precompiler tag (SYNC or ASYNC), commenting the other one that you do not want to use:
+To use a tracking mode, you only need to enable its corresponding precompiler tag (`SYNC` or `ASYNC`), commenting out (with `//`) the mode that you do *not* want to use:
 
 ```c#
 #define ASYNC
 //#undef ASYNC
 ```
 
-In this case, the tracker is in ASYNC mode.
+By default (as seen above), the tracker operates in asynchronous mode.
 
 ### Tracker access and instatiation (synchronous)
 
 First, you need to create and manage an instance. You have two ways for doing this.
-1. TrackerAsset has an singleton instance if you want to use it.
-1. Or either you can create your own instance via `new TrackerAsset()`.
+1. `TrackerAsset` has an singleton instance if you want to use it.
+1. Or (not recommended) you can create an instance via `new TrackerAsset()`.
 
 ```c#
 // You can use Tracker via Singleton:
@@ -74,7 +74,7 @@ player2tracker.Flush();
 
 ### Tracker configuration
 
-As previously explained in installation, tracker needs to be configured. There are some specific parameters that are needed to set up as Host and TrackingCode, and the rest of them are optional.
+As previously explained in installation, tracker needs to be configured. There are some specific parameters that are needed to set up as `Host` and `TrackingCode`, and the rest of them are optional.
 
 ```c#
 String domain = "https://rage.e-ucm.es/";
@@ -100,9 +100,9 @@ TrackerAsset.Instance.Settings = tracker_settings
 
 ### Bridge Implementation
 
-As in the rest of the assets of the RAGE projects, communication is made using a repository of interfaces called Bridge. This Bridge implements interfaces for managing the File System, or for sending Web Requests, and it's made this way to provide a platform independant system. If you want your tracker to be able to connect to the Analytics server, you have to use or implement a bridge for your platform that implements the interface `IWebServiceRequest`, for being able to make Logs implement `ILog`, and for accessing File System use `IDataStorage`. For more information see the [asset manager](https://github.com/rageappliedgame/AssetManager)
+As in the rest of the assets of the RAGE projects, communication is made using a repository of interfaces called `Bridge`. This `Bridge` implements interfaces for managing the File System, or for sending Web Requests. The use of the bridge allows us to provide a platform-independant system: supporting a different platform is just a matter of changing the bridge. If you want your tracker to be able to connect to an Analytics server, you have to use or implement a bridge for your platform that implements the interface `IWebServiceRequest`, for being able to make Logs implement `ILog`, and for accessing File System use `IDataStorage`. For more information see the [asset manager](https://github.com/rageappliedgame/AssetManager)
 
-Once you have a Bridge, you just need to add it to the Tracker.
+Once you have a `Bridge`, you just need to add it to the `Tracker`.
 
 ```c#
 //Setting the Bridge into the Tracker
@@ -111,16 +111,16 @@ TrackerAsset.Instance.Bridge = new Bridge();
 
 ### Tracker Login and Start (synchronous)
 
-Tracker Login and Start are the only two methods that are used syncronously to the server, so make sure don't do it while something important happens into the game, because probably is going to freeze, for a really small amount of time, but is going to freeze.
+The `Login` and `Start` methods are synchronous: your game will block until an answer is received, or a timeout or other network error ends the request. Make sure to display a suitable indication of what is going on so that players are not surprised by the (typically very short) lack of responsiveness.
 
 #### Tracker Login
 
-Tracker Login is not really necessary. If you are a developer, and you're logged into the Analytics server as a developer, you're going to receive traces either the player has logged or not. If you're a teacher, and you want to see traces in your activities, you can configure the activity to allow anonymous users.
+Tracker Login is not always necessary. If you are a developer, and you are logged into the Analytics server as a developer, you will receive traces regardless of whether players have logged in or not (however, the traces will not contain any user login information). If you are a teacher, and you want to see traces in your activities, you can configure the activity to allow anonymous users.
 
-If you are a teacher and you want to use logged students, you have to add the students to the class and then ask them for credentials into your game and log them into the system using `TrackerAsset.Instance.Login(String username, String password)` function.
+If you are a teacher and you want to use logged-in students, you have to add the students to the class and then ask them for credentials into your game and log them into the system using `TrackerAsset.Instance.Login(String username, String password)` function.
 
 ```c#
-//Log in the student BEFORE starting the tracker
+//Log in the student BEFORE starting the tracker; you can also retrieve this from, say, a configuration file in the filesystem
 String username = "student", password = "123456";
 
 TrackerAsset.Instance.Login(username, password);
@@ -128,7 +128,7 @@ TrackerAsset.Instance.Login(username, password);
 
 #### Tracker Start
 
-For requesting the actor to the server you have to start the tracker. This way actor is appended to the traces when generated. For starting the tracker you just have to call the `TrackerAsset.Instance.Start()` function.
+To request current actor information from the server you have to start the tracker. After this, actor information will be appended to all generated traces. To start the tracker you just have to call the `TrackerAsset.Instance.Start()`
 
 ```c#
 //Start the tracker before sending traces.
@@ -139,7 +139,6 @@ TrackerAsset.Instance.Start();
 ### Tracker Login and Start (asynchronous)
 
 To use the tracker asynchronously, you should first enable the ASYNC precompiler tag, as described above. This way, traces will be sent asynchronously.
-
 
 Start and Login have been maintained both sync and async (this last one will only work if tracker has ASYNC tag enabled). You may also use the specific methods LoginAsync and StartAsync. Depending on your code you might want to use one or the other. 
 
